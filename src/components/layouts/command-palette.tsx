@@ -15,7 +15,8 @@ import {
   Moon, 
   LogOut, 
   Search, 
-  Terminal 
+  Terminal,
+  Gift
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -37,6 +38,7 @@ export function CommandPalette() {
     { id: "feed", label: "Cosmic Aura Feed", icon: LayoutDashboard, desc: "Browse recent feed events", path: "/dashboard" },
     { id: "leaderboard", label: "Global Leaderboard", icon: Trophy, desc: "Check dynamic global rankings", path: "/leaderboard" },
     { id: "badges", label: "Achievements & Badges", icon: Medal, desc: "Check unlocked cosmic milestones", path: "/badges" },
+    { id: "wrapped", label: "Monthly Aura Wrapped", icon: Gift, desc: "Swipe through your monthly recap & archetype", path: "/wrapped" },
     { id: "profile", label: "Profile Dashboard", icon: User, desc: "View your stats and charts", path: "/profile" },
     { id: "premium", label: "Upgrade to AuraMint+", icon: Gem, desc: "Unlock unlimited cosmic parameters", path: "/premium" },
     { id: "theme", label: `Toggle Theme (${theme === "dark" ? "Light" : "Dark"})`, icon: theme === "dark" ? Sun : Moon, desc: "Switch visual mode theme", path: "action:theme" },

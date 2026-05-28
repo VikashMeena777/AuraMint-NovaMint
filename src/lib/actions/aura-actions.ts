@@ -10,6 +10,7 @@ const submitEventSchema = z.object({
   description: z.string().min(5, "Describe what happened (at least 5 chars)").max(280, "Keep it under 280 characters"),
   category: z.enum(["crush", "school", "work", "gym", "social", "family", "random"]),
   isPublic: z.boolean().default(true),
+  vibeRoll: z.boolean().optional().default(false),
 });
 
 export type SubmitEventInput = z.infer<typeof submitEventSchema>;
@@ -28,7 +29,7 @@ export async function submitAuraEvent(input: SubmitEventInput) {
     return { error: parsed.error.issues[0].message };
   }
 
-  const { description, category, isPublic } = parsed.data;
+  const { description, category, isPublic, vibeRoll } = parsed.data;
 
   // Check daily limit (5 for free, unlimited for premium)
   const { data: profile } = await supabase
@@ -53,6 +54,38 @@ export async function submitAuraEvent(input: SubmitEventInput) {
   // Calculate aura via AI
   const auraResult = await calculateAura(description, category);
 
+  // Check for Comeback Arc: User had a massive loss (< -2500) in the last 24 hours
+  let finalPoints = auraResult.points;
+  let finalVerdict = auraResult.verdict;
+  
+  const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data: recentLosses } = await supabase
+    .from("aura_events")
+    .select("aura_points")
+    .eq("user_id", user.id)
+    .lte("aura_points", -2500)
+    .gte("created_at", oneDayAgo)
+    .limit(1);
+
+  if (recentLosses && recentLosses.length > 0 && auraResult.points > 0) {
+    finalPoints = Math.round(auraResult.points * 1.5);
+    finalVerdict = `[🏆 COMEBACK ARC ACTIVE — 1.5x Multiplier Applied!] ${finalVerdict}`;
+  }
+
+  // Handle the Dopamine "Vibe Roll" Gamble (Double or Nothing)
+  let isVibeRollWon = false;
+  if (vibeRoll) {
+    const roll = Math.random() < 0.5; // 50% chance
+    if (roll) {
+      finalPoints = finalPoints * 2;
+      finalVerdict = `[🔥 VIBE ROLL WON — Double Aura Points Unlocked!] ${finalVerdict}`;
+      isVibeRollWon = true;
+    } else {
+      finalPoints = 0;
+      finalVerdict = `[💀 VIBE ROLL LOST — Aura Drained to Zero!] ${finalVerdict}`;
+    }
+  }
+
   // Insert event
   const { data: event, error: insertError } = await supabase
     .from("aura_events")
@@ -61,10 +94,10 @@ export async function submitAuraEvent(input: SubmitEventInput) {
       description,
       category,
       is_public: isPublic,
-      aura_points: auraResult.points,
-      ai_verdict: auraResult.verdict,
-      ai_vibe_tag: auraResult.vibe_tag,
-      ai_emoji: auraResult.emoji,
+      aura_points: finalPoints,
+      ai_verdict: finalVerdict,
+      ai_vibe_tag: vibeRoll ? (isVibeRollWon ? "VIBE WIN" : "VIBE LOSS") : auraResult.vibe_tag,
+      ai_emoji: vibeRoll ? (isVibeRollWon ? "🌟" : "💀") : auraResult.emoji,
     })
     .select()
     .single();
@@ -82,7 +115,7 @@ export async function submitAuraEvent(input: SubmitEventInput) {
     .single();
 
   const currentAura = (currentProfile as { total_aura: number } | null)?.total_aura ?? 0;
-  const newTotalAura = currentAura + auraResult.points;
+  const newTotalAura = currentAura + finalPoints;
   const newTier = getTierForAura(newTotalAura);
 
   // Calculate streak
@@ -122,8 +155,9 @@ export async function submitAuraEvent(input: SubmitEventInput) {
   // Log activity (fire-and-forget)
   logActivity(user.id, "aura.event.submitted", {
     event_id: (event as { id: string }).id,
-    points: auraResult.points,
+    points: finalPoints,
     category,
+    vibeRoll,
   }).catch(() => {});
 
   return {
@@ -138,7 +172,12 @@ export async function submitAuraEvent(input: SubmitEventInput) {
       category: string;
       created_at: string;
     },
-    aura: auraResult,
+    aura: {
+      points: finalPoints,
+      verdict: finalVerdict,
+      vibe_tag: vibeRoll ? (isVibeRollWon ? "VIBE WIN" : "VIBE LOSS") : auraResult.vibe_tag,
+      emoji: vibeRoll ? (isVibeRollWon ? "🌟" : "💀") : auraResult.emoji,
+    },
     newTotalAura: newTotalAura + streakBonus,
     newTier: newTier.name,
     streakBonus,

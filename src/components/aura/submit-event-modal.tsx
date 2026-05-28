@@ -38,6 +38,7 @@ export function SubmitEventModal({
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AuraResult | null>(null);
   const [showReveal, setShowReveal] = useState(false);
+  const [vibeRoll, setVibeRoll] = useState(false);
 
   // Listen for mobile bottom nav open event
   useEffect(() => {
@@ -54,6 +55,7 @@ export function SubmitEventModal({
     setCategory("random");
     setResult(null);
     setShowReveal(false);
+    setVibeRoll(false);
   }
 
   function handleClose() {
@@ -74,6 +76,7 @@ export function SubmitEventModal({
       description,
       category,
       isPublic: true,
+      vibeRoll,
     });
 
     setLoading(false);
@@ -193,8 +196,35 @@ export function SubmitEventModal({
                       >
                         {description.length}
                       </span>
-                      /280
                     </p>
+                  </div>
+
+                  {/* Vibe Roll Double or Nothing Option */}
+                  <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
+                    <div className="flex-1 min-w-0 pr-4">
+                      <p className="text-xs font-extrabold uppercase tracking-wider text-primary flex items-center gap-1.5 leading-none">
+                        <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                        Aura Vibe Roll Gamble
+                      </p>
+                      <p className="text-[10px] leading-relaxed text-muted-foreground mt-1.5">
+                        Double or Nothing (50% chance). Win double aura or lose it all! 🎲
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setVibeRoll(!vibeRoll); playHapticPop(); }}
+                      className={cn(
+                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
+                        vibeRoll ? "bg-primary" : "bg-secondary"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
+                          vibeRoll ? "translate-x-5" : "translate-x-0"
+                        )}
+                      />
+                    </button>
                   </div>
 
                   {/* Submit Trigger Action */}
