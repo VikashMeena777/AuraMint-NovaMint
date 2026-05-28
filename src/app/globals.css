@@ -1,26 +1,218 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:is(.dark *));
+
+/* ─── TYPOGRAPHY ─── Google Fonts loaded via next/font ──── */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* ─── Obsidian Light Theme — refined, warm, premium ──── */
+  --background: 40 15% 96%;
+  --foreground: 30 15% 10%;
+  --card: 40 20% 99%;
+  --card-foreground: 30 15% 10%;
+  --popover: 40 20% 99%;
+  --popover-foreground: 30 15% 10%;
+  --primary: 32 95% 52%;
+  --primary-foreground: 40 15% 4%;
+  --secondary: 35 15% 92%;
+  --secondary-foreground: 30 10% 20%;
+  --muted: 35 12% 91%;
+  --muted-foreground: 30 8% 50%;
+  --accent: 270 65% 55%;
+  --accent-foreground: 0 0% 100%;
+  --destructive: 4 80% 55%;
+  --destructive-foreground: 0 0% 100%;
+  --border: 35 15% 88%;
+  --input: 35 15% 88%;
+  --ring: 32 95% 52%;
+  --radius: 1rem;
+
+  /* ─── Aura Palette ─── */
+  --aura-positive: 152 69% 40%;
+  --aura-negative: 4 80% 55%;
+  --aura-gold: 42 97% 53%;
+  --aura-purple: 270 65% 55%;
+
+  /* ─── Tier Gradient Stops ─── */
+  --tier-npc: 220 12% 52%;
+  --tier-civilian: 270 50% 60%;
+  --tier-rising: 210 80% 56%;
+  --tier-main: 32 95% 52%;
+  --tier-legendary: 42 97% 53%;
+  --tier-mythical: 270 80% 50%;
+  --tier-god: 42 97% 53%;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+.dark {
+  --background: 240 16% 5%;
+  --foreground: 40 20% 95%;
+  --card: 240 14% 9%;
+  --card-foreground: 40 20% 95%;
+  --popover: 240 14% 9%;
+  --popover-foreground: 40 20% 95%;
+  --primary: 32 95% 52%;
+  --primary-foreground: 240 16% 5%;
+  --secondary: 240 12% 13%;
+  --secondary-foreground: 40 20% 90%;
+  --muted: 240 12% 14%;
+  --muted-foreground: 40 8% 58%;
+  --accent: 270 65% 55%;
+  --accent-foreground: 40 20% 95%;
+  --destructive: 4 80% 55%;
+  --destructive-foreground: 40 20% 95%;
+  --border: 240 12% 14%;
+  --input: 240 12% 14%;
+  --ring: 32 95% 52%;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Reset ─── */
+* {
+  border-color: hsl(var(--border));
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-satoshi), var(--font-dm-sans), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Glass Morphism ─── */
+.glass {
+  background: hsl(var(--card) / 0.55);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid hsl(var(--border) / 0.4);
+  border-radius: var(--radius);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+}
+
+.dark .glass {
+  background: hsl(var(--card) / 0.35);
+  border-color: hsl(var(--border) / 0.25);
+}
+
+.glass:hover {
+  box-shadow: 0 8px 32px hsl(var(--primary) / 0.08);
+}
+
+/* ─── Glow FX ─── */
+.glow-win {
+  box-shadow: 
+    0 0 0 1px hsl(var(--aura-positive) / 0.15),
+    0 4px 24px hsl(var(--aura-positive) / 0.12),
+    0 0 72px hsl(var(--aura-positive) / 0.06);
+}
+.glow-loss {
+  box-shadow:
+    0 0 0 1px hsl(var(--aura-negative) / 0.15),
+    0 4px 24px hsl(var(--aura-negative) / 0.12),
+    0 0 72px hsl(var(--aura-negative) / 0.06);
+}
+.glow-gold {
+  box-shadow:
+    0 0 0 1px hsl(var(--aura-gold) / 0.2),
+    0 4px 32px hsl(var(--aura-gold) / 0.18),
+    0 0 80px hsl(var(--aura-gold) / 0.08);
+}
+.glow-brand {
+  box-shadow:
+    0 4px 20px hsl(var(--primary) / 0.25),
+    0 0 60px hsl(var(--primary) / 0.08);
+}
+
+/* ─── Orb Pulse ─── */
+@keyframes orb-breathe {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.04); filter: brightness(1.15); }
+}
+@keyframes orb-ring {
+  0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.4); }
+  50% { box-shadow: 0 0 0 12px hsl(var(--primary) / 0); }
+}
+.aura-orb {
+  animation: orb-breathe 3.5s ease-in-out infinite, orb-ring 3.5s ease-in-out infinite;
+}
+
+/* ─── Counter Reveal ─── */
+@keyframes slide-up-fade {
+  0% { transform: translateY(120%); opacity: 0; filter: blur(4px); }
+  100% { transform: translateY(0); opacity: 1; filter: blur(0); }
+}
+.count-reveal {
+  animation: slide-up-fade 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ─── Star Twinkle ─── */
+@keyframes twinkle {
+  0%, 100% { opacity: 0.2; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
+}
+.star {
+  animation: twinkle var(--dur, 3s) ease-in-out infinite;
+  animation-delay: var(--del, 0s);
+}
+
+/* ─── Float ─── */
+@keyframes float-y {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+.float { animation: float-y 5s ease-in-out infinite; }
+
+/* ─── Gradient Text ─── */
+.grad-text {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--accent)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grad-gold {
+  background: linear-gradient(135deg, hsl(42, 97%, 53%), hsl(32, 95%, 52%));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ─── Heading Style ─── */
+.heading {
+  font-family: var(--font-clash), var(--font-space-grotesk), system-ui;
+  letter-spacing: -0.03em;
+  font-weight: 700;
+}
+
+.mono {
+  font-family: var(--font-jetbrains-mono), ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Custom Scrollbar ─── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--muted-foreground) / 0.2); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.4); }
+
+/* ─── Focus Ring ─── */
+*:focus-visible {
+  outline: 2px solid hsl(var(--ring) / 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ─── Selection ─── */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+}
+
+/* ─── Noise Texture Overlay ─── */
+.noise::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
 }
