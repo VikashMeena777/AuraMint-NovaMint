@@ -9,6 +9,7 @@ import { reactToEvent, voteOnEvent } from "@/lib/actions/aura-actions";
 import { toast } from "sonner";
 import { ShareCardModal } from "@/components/aura/share-card-modal";
 import { PremiumIcon } from "@/components/aura/premium-icon";
+import { playHapticPop } from "@/lib/utils/sound";
 
 type AuraEvent = {
   id: string;
@@ -58,6 +59,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
   const category = CATEGORIES.find((c) => c.value === event.category);
 
   async function handleReaction(type: string) {
+    playHapticPop();
     const result = await reactToEvent(event.id, type);
     if (result.error) { toast.error(result.error); return; }
     if (result.action === "removed") {
@@ -71,6 +73,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
   }
 
   async function handleVote(value: 1 | -1) {
+    playHapticPop();
     const result = await voteOnEvent(event.id, value);
     if (result.error) { toast.error(result.error); return; }
     if (result.action === "removed") {
@@ -84,6 +87,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
   }
 
   async function handleShare() {
+    playHapticPop();
     const text = `${event.ai_emoji} ${formatAuraPoints(event.aura_points)} aura\n\n"${event.description}"\n\n${event.ai_verdict}\n\n— AuraMint 👑`;
     const url = `${window.location.origin}/event/${event.id}`;
     if (navigator.share) {
@@ -230,7 +234,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
           {/* Social shares */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setShowShareCard(true)}
+              onClick={() => { setShowShareCard(true); playHapticPop(); }}
               className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/15 px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider text-primary transition hover:bg-primary/20 shadow-sm"
             >
               <Share2 className="h-3.5 w-3.5" />

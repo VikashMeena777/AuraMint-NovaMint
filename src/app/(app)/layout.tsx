@@ -32,7 +32,30 @@ export default async function AppLayout({
     current_tier: string;
     streak_days: number;
     is_premium: boolean;
+    last_active_date?: string;
   } | null;
+
+  // Loss Aversion: "NPC demotion loop" for inactivity > 36 hours
+  if (userProfile && userProfile.last_active_date) {
+    const today = new Date();
+    const lastActive = new Date(userProfile.last_active_date);
+    const diffTime = Math.abs(today.getTime() - lastActive.getTime());
+    const diffHours = diffTime / (1000 * 60 * 60);
+
+    if (diffHours > 36 && userProfile.current_tier !== "NPC") {
+      userProfile.current_tier = "NPC";
+      userProfile.streak_days = 0;
+
+      // Persist the downgrade back to database dynamically
+      await supabase
+        .from("profiles")
+        .update({
+          current_tier: "NPC",
+          streak_days: 0,
+        })
+        .eq("id", user.id);
+    }
+  }
 
   return (
     <div className="flex min-h-screen">
