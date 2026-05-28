@@ -1,13 +1,14 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles, ArrowUp, ArrowDown, Share2, MoreHorizontal } from "lucide-react";
+import { Sparkles, ArrowUp, ArrowDown, Share2 } from "lucide-react";
 import { cn, formatAuraPoints, timeAgo } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/ai/prompts";
 import { useState } from "react";
 import { reactToEvent, voteOnEvent } from "@/lib/actions/aura-actions";
 import { toast } from "sonner";
 import { ShareCardModal } from "@/components/aura/share-card-modal";
+import { PremiumIcon } from "@/components/aura/premium-icon";
 
 type AuraEvent = {
   id: string;
@@ -85,146 +86,167 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
   async function handleShare() {
     const text = `${event.ai_emoji} ${formatAuraPoints(event.aura_points)} aura\n\n"${event.description}"\n\n${event.ai_verdict}\n\n— AuraMint 👑`;
     const url = `${window.location.origin}/event/${event.id}`;
-    if (navigator.share) { try { await navigator.share({ text, url }); } catch {} }
-    else { await navigator.clipboard.writeText(`${text}\n${url}`); toast.success("Copied! 📋"); }
-  }
-
-  function handleShareCard() {
-    setShowShareCard(true);
+    if (navigator.share) {
+      try { await navigator.share({ text, url }); } catch {}
+    } else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      toast.success("Copied details to clipboard! 📋");
+    }
   }
 
   return (
     <>
-    <motion.article
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.35, delay: index * 0.04 }}
-      className={cn(
-        "glass noise relative overflow-hidden transition-all",
-        isLegendary && isPositive && "glow-gold",
-        isLegendary && !isPositive && "glow-loss",
-        !isLegendary && isPositive && "glow-win",
-        !isLegendary && !isPositive && "glow-loss"
-      )}
-    >
-      {/* ── Header ── */}
-      <div className="relative z-10 flex items-center justify-between px-5 pt-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
-            {event.profiles
-              ? (event.profiles.display_name || event.profiles.username).charAt(0).toUpperCase()
-              : "?"}
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[13px] font-semibold">
-                {event.profiles?.display_name || event.profiles?.username || "Anonymous"}
-              </span>
-              <span className="text-sm">{tierEmojis[event.profiles?.current_tier || "NPC"]}</span>
-            </div>
-            <span className="text-[11px] text-muted-foreground">{timeAgo(event.created_at)}</span>
-          </div>
-        </div>
-        {category && (
-          <span className="rounded-full bg-secondary/60 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            {category.emoji} {category.label}
-          </span>
+      <motion.article
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.45, ease: "easeOut", delay: index * 0.05 }}
+        className={cn(
+          "glass noise relative overflow-hidden transition-all rounded-3xl border border-border/30",
+          isLegendary && isPositive && "glow-gold",
+          isLegendary && !isPositive && "glow-loss",
+          !isLegendary && isPositive && "glow-win",
+          !isLegendary && !isPositive && "glow-loss"
         )}
-      </div>
+      >
+        {/* Subtle radial backdrops matching scoring polarity */}
+        <div className={cn(
+          "absolute -right-24 -top-24 h-48 w-48 rounded-full blur-3xl opacity-35 pointer-events-none",
+          isPositive ? "bg-emerald-500/10" : "bg-red-500/10"
+        )} />
 
-      {/* ── Body ── */}
-      <p className="relative z-10 px-5 pt-3 text-[14px] leading-relaxed">{event.description}</p>
+        {/* ── Header details ── */}
+        <div className="relative z-10 flex items-center justify-between px-6 pt-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 border border-primary/5 text-sm font-black text-primary shadow-sm">
+              {event.profiles
+                ? (event.profiles.display_name || event.profiles.username).charAt(0).toUpperCase()
+                : "?"}
+            </div>
+            <div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-xs font-bold leading-tight">
+                  {event.profiles?.display_name || event.profiles?.username || "Anonymous"}
+                </span>
+                <PremiumIcon emoji={tierEmojis[event.profiles?.current_tier || "NPC"]} className="h-3.5 w-3.5" />
+              </div>
+              <span className="text-[10px] font-semibold text-muted-foreground/60 leading-none">
+                {timeAgo(event.created_at)}
+              </span>
+            </div>
+          </div>
+          {category && (
+            <span className="rounded-full bg-secondary/50 border border-border/40 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+              <PremiumIcon emoji={category.emoji} className="h-3.5 w-3.5" />
+              <span>{category.label}</span>
+            </span>
+          )}
+        </div>
 
-      {/* ── Points (dramatic) ── */}
-      <div className="relative z-10 flex items-baseline gap-2.5 px-5 pt-4">
-        <span className={cn(
-          "mono text-[32px] font-extrabold tracking-tighter leading-none",
-          isPositive ? "text-emerald-400" : "text-red-400"
-        )}>
-          {formatAuraPoints(event.aura_points)}
-        </span>
-        <span className="text-2xl">{event.ai_emoji}</span>
-      </div>
+        {/* ── Description text ── */}
+        <p className="relative z-10 px-6 pt-4 text-xs sm:text-sm font-medium leading-relaxed text-foreground/95">
+          {event.description}
+        </p>
 
-      {/* ── Verdict ── */}
-      <p className="relative z-10 px-5 pt-2 text-[12.5px] italic leading-relaxed text-muted-foreground">
-        &ldquo;{event.ai_verdict}&rdquo;
-      </p>
-
-      {/* ── Vibe Tag ── */}
-      {event.ai_vibe_tag && (
-        <div className="relative z-10 px-5 pt-3">
-          <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-2.5 py-1 text-[11px] font-semibold text-accent">
-            <Sparkles className="h-2.5 w-2.5" />
-            {event.ai_vibe_tag}
+        {/* ── Scored Points visual ── */}
+        <div className="relative z-10 flex items-baseline gap-2.5 px-6 pt-4">
+          <span className={cn(
+            "heading text-3xl sm:text-4xl font-extrabold tracking-tighter leading-none grad-text",
+            isPositive ? "text-emerald-400" : "text-red-400"
+          )} style={{ fontFamily: "var(--font-display)" }}>
+            {isPositive ? "+" : ""}
+            {formatAuraPoints(event.aura_points)}
           </span>
+          <PremiumIcon emoji={event.ai_emoji} className="h-7 w-7 animate-bounce" />
         </div>
-      )}
 
-      {/* ── Reactions ── */}
-      <div className="relative z-10 flex flex-wrap items-center gap-1.5 px-5 pt-4">
-        {reactions.map((r) => (
-          <button
-            key={r.type}
-            onClick={() => handleReaction(r.type)}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] transition-all",
-              activeReaction === r.type
-                ? "bg-primary/10 ring-1 ring-primary/20 font-semibold"
-                : "bg-secondary/40 hover:bg-secondary/70"
-            )}
-          >
-            <span className="text-sm">{r.emoji}</span>
-            <span className="mono text-[11px]">{localReactions[r.type] || 0}</span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── Action Bar ── */}
-      <div className="relative z-10 mt-4 flex items-center justify-between border-t border-border/30 px-5 py-2.5">
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => handleVote(1)}
-            className={cn(
-              "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all",
-              userVote === 1 ? "bg-emerald-500/10 text-emerald-400" : "text-muted-foreground hover:bg-secondary/60"
-            )}
-          >
-            <ArrowUp className="h-3.5 w-3.5" />
-            W
-            <span className="mono ml-0.5">{localUpvotes}</span>
-          </button>
-          <button
-            onClick={() => handleVote(-1)}
-            className={cn(
-              "flex items-center gap-1 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-all",
-              userVote === -1 ? "bg-red-500/10 text-red-400" : "text-muted-foreground hover:bg-secondary/60"
-            )}
-          >
-            <ArrowDown className="h-3.5 w-3.5" />
-            L
-            <span className="mono ml-0.5">{localDownvotes}</span>
-          </button>
+        {/* ── Savagely quoted Verdict ── */}
+        <div className="relative z-10 mx-6 mt-4 rounded-2xl bg-secondary/20 border border-border/30 p-4">
+          <p className="text-[12px] italic leading-relaxed text-muted-foreground/90">
+            &ldquo;{event.ai_verdict}&rdquo;
+          </p>
         </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            onClick={handleShareCard}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-secondary/60 hover:text-foreground"
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            Card
-          </button>
-          <button
-            onClick={handleShare}
-            className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition hover:bg-secondary/60 hover:text-foreground"
-          >
-            Share
-          </button>
-        </div>
-      </div>
-    </motion.article>
 
-      {/* Share Card Modal */}
+        {/* ── AI Vibe tag pill ── */}
+        {event.ai_vibe_tag && (
+          <div className="relative z-10 px-6 pt-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 border border-accent/20 px-3 py-1.5 text-[10px] font-extrabold uppercase tracking-widest text-accent">
+              <Sparkles className="h-3 w-3" />
+              {event.ai_vibe_tag}
+            </span>
+          </div>
+        )}
+
+        {/* ── User Reactions Pill selectors ── */}
+        <div className="relative z-10 flex flex-wrap items-center gap-1.5 px-6 pt-5">
+          {reactions.map((r) => (
+            <button
+              key={r.type}
+              onClick={() => handleReaction(r.type)}
+              className={cn(
+                "flex items-center gap-1 rounded-2xl px-3 py-1.5 text-xs font-semibold transition-all border",
+                activeReaction === r.type
+                  ? "bg-primary/10 border-primary/20 text-primary shadow-sm"
+                  : "bg-secondary/40 border-transparent hover:bg-secondary/70"
+              )}
+            >
+              <span className="text-sm leading-none">{r.emoji}</span>
+              <span className="mono text-[10px] font-bold text-muted-foreground/80">{localReactions[r.type] || 0}</span>
+            </button>
+          ))}
+        </div>
+
+        {/* ── Footer Interaction Controller ── */}
+        <div className="relative z-10 mt-5 flex items-center justify-between border-t border-border/25 px-6 py-3.5 bg-secondary/10">
+          {/* W / L Votes */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleVote(1)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider transition-all border",
+                userVote === 1
+                  ? "bg-emerald-500/10 border-emerald-500/25 text-emerald-400"
+                  : "text-muted-foreground hover:bg-secondary/60 border-transparent"
+              )}
+            >
+              <ArrowUp className="h-3.5 w-3.5" />
+              <span>W</span>
+              <span className="mono font-black">{localUpvotes}</span>
+            </button>
+            <button
+              onClick={() => handleVote(-1)}
+              className={cn(
+                "flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider transition-all border",
+                userVote === -1
+                  ? "bg-red-500/10 border-red-500/25 text-red-400"
+                  : "text-muted-foreground hover:bg-secondary/60 border-transparent"
+              )}
+            >
+              <ArrowDown className="h-3.5 w-3.5" />
+              <span>L</span>
+              <span className="mono font-black">{localDownvotes}</span>
+            </button>
+          </div>
+
+          {/* Social shares */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowShareCard(true)}
+              className="flex items-center gap-2 rounded-xl bg-primary/10 border border-primary/15 px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider text-primary transition hover:bg-primary/20 shadow-sm"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span>Card</span>
+            </button>
+            <button
+              onClick={handleShare}
+              className="flex items-center gap-2 rounded-xl border border-border bg-card/25 px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground"
+            >
+              Share
+            </button>
+          </div>
+        </div>
+      </motion.article>
+
+      {/* Share card overlay popup dialog */}
       <ShareCardModal
         isOpen={showShareCard}
         onClose={() => setShowShareCard(false)}
@@ -236,6 +258,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
           ai_vibe_tag: event.ai_vibe_tag,
           username: event.profiles?.username || "anonymous",
           tier: event.profiles?.current_tier || "NPC",
+          event_id: event.id,
         }}
       />
     </>

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
+import { sendWelcomeEmail } from "@/lib/email/send";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -10,6 +11,24 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // Check if new user → send welcome email
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username, onboarding_complete")
+          .eq("id", user.id)
+          .single();
+
+        const username = (profile as any)?.username || "AuraMinter";
+        const isNew = !(profile as any)?.onboarding_complete;
+
+        if (isNew && user.email) {
+          // Fire-and-forget — don't block redirect
+          sendWelcomeEmail(user.email, username).catch(() => {});
+        }
+      }
+
       const forwardedHost = request.headers.get("x-forwarded-host");
       const isLocalEnv = process.env.NODE_ENV === "development";
       if (isLocalEnv) {
@@ -25,3 +44,4 @@ export async function GET(request: Request) {
   // Auth error — redirect to login with error
   return NextResponse.redirect(`${origin}/login?error=auth_failed`);
 }
+

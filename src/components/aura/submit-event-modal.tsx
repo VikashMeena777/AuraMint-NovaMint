@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Zap } from "lucide-react";
+import { X, Sparkles, Zap, Crown } from "lucide-react";
+import { CelebrationEffect } from "@/components/aura/celebration-effect";
 import { CATEGORIES } from "@/lib/ai/prompts";
 import { submitAuraEvent } from "@/lib/actions/aura-actions";
 import { toast } from "sonner";
 import { cn, formatAuraPoints } from "@/lib/utils";
+import { PremiumIcon } from "@/components/aura/premium-icon";
+import { playHapticPop, playAuraGainSound, playAuraLossSound } from "@/lib/utils/sound";
 
 type AuraResult = {
   event: {
@@ -40,6 +43,7 @@ export function SubmitEventModal({
   useEffect(() => {
     function handleOpen() {
       setIsOpen(true);
+      playHapticPop();
     }
     window.addEventListener("open-submit-modal", handleOpen);
     return () => window.removeEventListener("open-submit-modal", handleOpen);
@@ -54,6 +58,7 @@ export function SubmitEventModal({
 
   function handleClose() {
     setIsOpen(false);
+    playHapticPop();
     setTimeout(resetState, 300);
   }
 
@@ -63,6 +68,7 @@ export function SubmitEventModal({
       return;
     }
 
+    playHapticPop();
     setLoading(true);
     const response = await submitAuraEvent({
       description,
@@ -78,7 +84,14 @@ export function SubmitEventModal({
     }
 
     if (response.success) {
-      setResult(response as AuraResult);
+      const res = response as AuraResult;
+      const points = res.aura?.points ?? 0;
+      if (points >= 0) {
+        playAuraGainSound();
+      } else {
+        playAuraLossSound();
+      }
+      setResult(res);
       setShowReveal(true);
       onEventSubmitted?.();
     }
@@ -86,89 +99,93 @@ export function SubmitEventModal({
 
   return (
     <>
-      {/* Desktop FAB */}
+      {/* Desktop FAB Button overlay */}
       <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-8 z-30 hidden items-center gap-2 rounded-2xl bg-primary px-6 py-4 text-sm font-bold text-primary-foreground shadow-2xl transition-all hover:scale-105 lg:flex glow-brand"
+        onClick={() => { setIsOpen(true); playHapticPop(); }}
+        className="fixed bottom-8 right-8 z-30 hidden items-center gap-3.5 rounded-2xl bg-primary px-7 py-4.5 text-xs font-extrabold uppercase tracking-wider text-primary-foreground shadow-2xl transition-all hover:scale-105 active:scale-95 lg:flex glow-brand border border-primary/20"
         id="desktop-submit-btn"
       >
-        <Zap className="h-5 w-5" />
+        <Zap className="h-5 w-5 animate-pulse" />
         Log Aura Event
       </button>
 
-      {/* Modal Overlay */}
+      {/* Modal Overlay background */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 backdrop-blur-sm sm:items-center"
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-sm sm:items-center p-4"
             onClick={(e) => e.target === e.currentTarget && handleClose()}
           >
             <motion.div
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-lg rounded-t-3xl bg-card p-6 shadow-2xl sm:rounded-3xl sm:m-4"
+              transition={{ type: "spring", damping: 25, stiffness: 280 }}
+              className="relative w-full max-w-lg rounded-t-[2rem] bg-card p-7 shadow-2xl border border-border/40 sm:rounded-[2rem] overflow-hidden"
             >
+              {/* Glow effects inside modal */}
+              <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+
               {/* Close */}
               <button
                 onClick={handleClose}
-                className="absolute right-4 top-4 rounded-full p-2 text-muted-foreground hover:bg-secondary"
+                className="absolute right-5 top-5 rounded-xl border border-border bg-card/40 p-2.5 text-muted-foreground hover:text-foreground transition"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4.5 w-4.5" />
               </button>
 
               {!showReveal ? (
                 <>
-                  {/* Header */}
-                  <div className="mb-6">
-                    <h2 className="heading text-xl">
-                      What happened? ⚡
+                  {/* Header Title */}
+                  <div className="mb-6 mt-2">
+                    <h2 className="heading text-xl tracking-tight leading-none">
+                      What Happened? ⚡
                     </h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                      Describe the moment and AI will rate your aura impact
+                    <p className="mt-1.5 text-xs text-muted-foreground">
+                      Tell the AI your moment and watch your aura values change
                     </p>
                   </div>
 
-                  {/* Category Picker */}
-                  <div className="mb-4">
-                    <label className="mb-2 block text-sm font-medium">
+                  {/* Category Chips Selection */}
+                  <div className="mb-5">
+                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
                       Category
                     </label>
                     <div className="flex flex-wrap gap-2">
                       {CATEGORIES.map((cat) => (
                         <button
                           key={cat.value}
-                          onClick={() => setCategory(cat.value)}
+                          onClick={() => { setCategory(cat.value); playHapticPop(); }}
                           className={cn(
-                            "rounded-full px-3 py-1.5 text-xs font-medium transition-all",
+                            "rounded-2xl px-4 py-2 text-xs font-bold transition-all border flex items-center gap-1.5",
                             category === cat.value
-                              ? "bg-primary text-primary-foreground"
-                              : "bg-secondary text-muted-foreground hover:bg-secondary/80"
+                              ? "bg-primary border-primary/20 text-primary-foreground shadow-sm"
+                              : "bg-secondary/40 border-transparent text-muted-foreground hover:bg-secondary/80"
                           )}
                         >
-                          {cat.emoji} {cat.label}
+                          <PremiumIcon emoji={cat.emoji} className="h-3.5 w-3.5" />
+                          <span>{cat.label}</span>
                         </button>
                       ))}
                     </div>
                   </div>
 
-                  {/* Text Input */}
+                  {/* Description Input Text Box */}
                   <div className="mb-6">
                     <textarea
                       value={description}
                       onChange={(e) =>
                         setDescription(e.target.value.slice(0, 280))
                       }
-                      placeholder="e.g., Walked past crush without tripping..."
+                      placeholder="e.g., Held the lift for college professor and he actually smiled back..."
                       rows={3}
-                      className="w-full resize-none rounded-xl border border-input bg-background p-4 text-sm transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-ring/20"
+                      className="w-full resize-none rounded-2xl border border-border bg-secondary/15 p-4 text-xs sm:text-sm transition placeholder:text-muted-foreground/45 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
                       autoFocus
                     />
-                    <p className="mt-1 text-right text-xs text-muted-foreground">
+                    <p className="mt-1 text-right text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
                       <span
                         className={cn(
                           description.length > 250 && "text-destructive"
@@ -180,28 +197,28 @@ export function SubmitEventModal({
                     </p>
                   </div>
 
-                  {/* Submit Button */}
+                  {/* Submit Trigger Action */}
                   <button
                     onClick={handleSubmit}
                     disabled={loading || description.length < 5}
-                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-3.5 text-sm font-bold text-primary-foreground transition-all hover:brightness-110 disabled:opacity-50 glow-brand"
+                    className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-primary px-5 py-4.5 text-xs font-extrabold uppercase tracking-wider text-primary-foreground transition-all hover:brightness-110 shadow-lg glow-brand disabled:opacity-50"
                     id="calculate-aura-btn"
                   >
                     {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                        Calculating your aura...
+                      <div className="flex items-center gap-2.5">
+                        <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
+                        <span>Calculating Aura Impact...</span>
                       </div>
                     ) : (
                       <>
-                        <Sparkles className="h-4 w-4" />
-                        Calculate My Aura
+                        <Sparkles className="h-4.5 w-4.5" />
+                        <span>Calculate My Aura</span>
                       </>
                     )}
                   </button>
                 </>
               ) : (
-                /* Aura Reveal */
+                /* Aura Reveal Results Card */
                 result && (
                   <AuraReveal
                     result={result}
@@ -228,87 +245,97 @@ function AuraReveal({
   const isLegendary = Math.abs(result.aura.points) >= 5000;
 
   return (
-    <div className="text-center py-4">
-      {/* Emoji burst */}
+    <div className="text-center py-4 relative">
+      {/* Confetti particle elements based on scoring value */}
+      {isLegendary && (
+        <CelebrationEffect type={isPositive ? "confetti" : "skull"} />
+      )}
+      
+      {/* Emoji graphic */}
       <motion.div
         initial={{ scale: 0, rotate: -180 }}
         animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: "spring", delay: 0.1 }}
-        className="mb-4 text-6xl"
+        transition={{ type: "spring", delay: 0.1, stiffness: 200 }}
+        className="mb-3 flex justify-center select-none"
       >
-        {result.aura.emoji}
+        <PremiumIcon emoji={result.aura.emoji} className="h-14 w-14" />
       </motion.div>
 
-      {/* Points */}
+      {/* Saturated Aura points reveal */}
       <motion.div
-        initial={{ scale: 0, y: 50 }}
-        animate={{ scale: 1, y: 0 }}
-        transition={{ type: "spring", delay: 0.3, stiffness: 200 }}
+        initial={{ scale: 0.5, y: 30, opacity: 0 }}
+        animate={{ scale: 1, y: 0, opacity: 1 }}
+        transition={{ type: "spring", delay: 0.35, stiffness: 220 }}
         className={cn(
-          "mono text-5xl font-black tracking-tighter",
-          isPositive ? "text-emerald-500" : "text-red-500"
+          "heading text-5xl sm:text-6xl font-black tracking-tight leading-none grad-text",
+          isPositive ? "text-emerald-400" : "text-red-400"
         )}
+        style={{ fontFamily: "var(--font-display)" }}
       >
+        {isPositive ? "+" : ""}
         {formatAuraPoints(result.aura.points)}
       </motion.div>
 
       <motion.p
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="mt-1 text-sm font-medium text-muted-foreground"
+        transition={{ delay: 0.55 }}
+        className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.25em] text-muted-foreground/60"
       >
         aura points
       </motion.p>
 
-      {/* Verdict */}
-      <motion.p
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
-        className="mt-4 text-sm italic text-muted-foreground px-4"
-      >
-        &ldquo;{result.aura.verdict}&rdquo;
-      </motion.p>
-
-      {/* Vibe Tag */}
+      {/* Savagely Quoted Verdict */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.8 }}
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.75 }}
+        className="mt-5 mx-2 rounded-2xl bg-secondary/20 border border-border/30 p-4"
+      >
+        <p className="text-xs sm:text-sm italic leading-relaxed text-muted-foreground">
+          &ldquo;{result.aura.verdict}&rdquo;
+        </p>
+      </motion.div>
+
+      {/* Dynamic Vibe Tag */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.85 }}
         animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.9 }}
+        transition={{ delay: 0.95 }}
         className="mt-4"
       >
-        <span className="inline-flex items-center gap-1 rounded-full bg-accent/10 px-4 py-1.5 text-sm font-semibold text-accent">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 border border-accent/20 px-4 py-2 text-xs font-extrabold uppercase tracking-widest text-accent">
           <Sparkles className="h-3.5 w-3.5" />
           {result.aura.vibe_tag}
         </span>
       </motion.div>
 
-      {/* New Total */}
+      {/* Progress & Stat Pill */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.1 }}
-        className="mt-6 rounded-xl bg-secondary/50 p-3"
+        transition={{ delay: 1.15 }}
+        className="mt-6 rounded-2xl border border-border/30 bg-secondary/15 p-4"
       >
-        <p className="text-xs text-muted-foreground">Total Aura</p>
-        <p className="mono text-lg font-bold">
+        <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/60">Total Aura Balance</p>
+        <p className="heading text-xl font-bold mt-1 tracking-tight leading-none text-primary">
           {formatAuraPoints(result.newTotalAura)}
         </p>
-        <p className="text-xs text-muted-foreground">
-          {result.newTier} {result.streakBonus > 0 && `(+${result.streakBonus} streak bonus!)`}
+        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mt-1">
+          {result.newTier} {result.streakBonus > 0 && `(Streak Bonus +${result.streakBonus}!)`}
         </p>
       </motion.div>
 
-      {/* Close */}
+      {/* Close Action Trigger */}
       <motion.button
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.3 }}
+        transition={{ delay: 1.35 }}
         onClick={onClose}
-        className="mt-6 w-full rounded-xl bg-primary px-4 py-3 text-sm font-semibold text-primary-foreground transition-all hover:opacity-90"
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-xs font-extrabold uppercase tracking-wider text-primary-foreground shadow-lg transition hover:brightness-110 active:scale-98"
       >
-        Nice! Back to Feed 👑
+        <span>Nice! Back to Feed</span>
+        <Crown className="h-4 w-4" />
       </motion.button>
     </div>
   );

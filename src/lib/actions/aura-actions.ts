@@ -290,23 +290,89 @@ export async function getLeaderboard(
   const from = page * limit;
   const to = from + limit - 1;
 
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("id, username, display_name, avatar_url, total_aura, current_tier, streak_days")
-    .order("total_aura", { ascending: false })
-    .range(from, to);
+  if (period === "alltime") {
+    // All-time: just read total_aura from profiles
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("id, username, display_name, avatar_url, total_aura, current_tier, streak_days")
+      .order("total_aura", { ascending: false })
+      .range(from, to);
+
+    if (error) {
+      console.error("[getLeaderboard]", error);
+      return { users: [], hasMore: false };
+    }
+
+    return {
+      users: (data || []).map((user, index) => ({
+        ...user,
+        rank: from + index + 1,
+      })),
+      hasMore: (data?.length ?? 0) === limit,
+    };
+  }
+
+  // Daily/Weekly: aggregate aura_points from events within the period
+  const now = new Date();
+  let since: Date;
+
+  if (period === "daily") {
+    since = new Date(now);
+    since.setHours(0, 0, 0, 0);
+  } else {
+    // Weekly: last 7 days
+    since = new Date(now);
+    since.setDate(since.getDate() - 7);
+    since.setHours(0, 0, 0, 0);
+  }
+
+  // Get events in the period grouped by user
+  const { data: events, error } = await supabase
+    .from("aura_events")
+    .select("user_id, aura_points")
+    .gte("created_at", since.toISOString());
 
   if (error) {
     console.error("[getLeaderboard]", error);
     return { users: [], hasMore: false };
   }
 
+  // Aggregate by user
+  const userAuraMap = new Map<string, number>();
+  for (const event of events || []) {
+    const uid = (event as any).user_id;
+    const pts = (event as any).aura_points || 0;
+    userAuraMap.set(uid, (userAuraMap.get(uid) || 0) + pts);
+  }
+
+  // Sort by aura descending
+  const sorted = [...userAuraMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(from, to + 1);
+
+  if (sorted.length === 0) {
+    return { users: [], hasMore: false };
+  }
+
+  // Fetch profiles for these users
+  const userIds = sorted.map(([uid]) => uid);
+  const { data: profiles } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, current_tier, streak_days")
+    .in("id", userIds);
+
+  const profileMap = new Map((profiles || []).map(p => [(p as any).id, p]));
+
   return {
-    users: (data || []).map((user, index) => ({
-      ...user,
-      rank: from + index + 1,
-    })),
-    hasMore: (data?.length ?? 0) === limit,
+    users: sorted.map(([uid, periodAura], index) => {
+      const profile = profileMap.get(uid) || {};
+      return {
+        ...(profile as any),
+        total_aura: periodAura,
+        rank: from + index + 1,
+      };
+    }),
+    hasMore: sorted.length === limit,
   };
 }
 

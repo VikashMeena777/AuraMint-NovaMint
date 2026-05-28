@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Sidebar } from "@/components/layouts/sidebar";
 import { BottomNav } from "@/components/layouts/bottom-nav";
+import { CommandPalette } from "@/components/layouts/command-palette";
 
 export default async function AppLayout({
   children,
@@ -45,6 +46,9 @@ export default async function AppLayout({
 
       {/* Mobile Bottom Nav */}
       <BottomNav />
+
+      {/* Command Palette Shortcut Portal */}
+      <CommandPalette />
     </div>
   );
 }
