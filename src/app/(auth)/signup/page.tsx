@@ -4,11 +4,12 @@ import Link from "next/link";
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, ArrowRight, Sparkles, User } from "lucide-react";
 import { toast } from "sonner";
-import { generateUsername } from "@/lib/utils";
 
 export default function SignupPage() {
+  const [fullName, setFullName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -18,16 +19,44 @@ export default function SignupPage() {
 
   async function handleSignup(e: React.FormEvent) {
     e.preventDefault();
+    if (!fullName.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    const cleanUsername = username.trim().toLowerCase();
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(cleanUsername)) {
+      toast.error("Username must be 3-20 characters, only letters, numbers, and underscores");
+      return;
+    }
     if (password.length < 6) {
       toast.error("Password must be at least 6 characters");
       return;
     }
     setLoading(true);
-    const username = generateUsername();
+
+    // Uniqueness check for username
+    const { data: existing, error: checkError } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", cleanUsername)
+      .maybeSingle();
+
+    if (existing) {
+      toast.error("Username already taken");
+      setLoading(false);
+      return;
+    }
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { username, full_name: username } },
+      options: { 
+        data: { 
+          username: cleanUsername, 
+          full_name: fullName.trim() 
+        } 
+      },
     });
     setLoading(false);
     if (error) {
@@ -98,6 +127,32 @@ export default function SignupPage() {
 
         {/* Standard Signup Form */}
         <form onSubmit={handleSignup} className="space-y-4">
+          <div className="relative">
+            <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+            <input
+              id="signup-fullname"
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Full Name"
+              required
+              className="w-full rounded-2xl border border-border/80 bg-secondary/15 py-3.5 pl-11 pr-4 text-xs transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
+            />
+          </div>
+          <div className="relative">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground/60">@</span>
+            <input
+              id="signup-username"
+              type="text"
+              value={username}
+              onChange={(e) => setUsername(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20))}
+              placeholder="username"
+              required
+              minLength={3}
+              maxLength={20}
+              className="w-full rounded-2xl border border-border/80 bg-secondary/15 py-3.5 pl-8 pr-4 text-xs font-semibold transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
+            />
+          </div>
           <div className="relative">
             <Mail className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
             <input

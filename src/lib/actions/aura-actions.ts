@@ -453,7 +453,7 @@ export async function getUserProfile(username: string) {
   };
 }
 
-export async function updateUsername(newUsername: string) {
+export async function updateProfile(newUsername: string, newDisplayName: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -465,26 +465,83 @@ export async function updateUsername(newUsername: string) {
     return { error: "Username must be 3-20 characters, only letters, numbers, and underscores" };
   }
 
-  // Check availability
-  const { data: existing } = await supabase
+  // Get current profile
+  const { data: profile, error: profileErr } = await supabase
     .from("profiles")
-    .select("id")
-    .eq("username", newUsername)
-    .neq("id", user.id)
+    .select("username, username_changes, display_name")
+    .eq("id", user.id)
     .single();
 
-  if (existing) {
-    return { error: "Username already taken" };
+  if (profileErr || !profile) {
+    return { error: "Profile not found" };
   }
 
-  const { error } = await supabase
+  const isUsernameChanging = profile.username !== newUsername;
+  let updatedChanges = (profile as any).username_changes || [];
+
+  if (isUsernameChanging) {
+    // Check uniqueness of new username
+    const { data: existing } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("username", newUsername)
+      .neq("id", user.id)
+      .maybeSingle();
+
+    if (existing) {
+      return { error: "Username already taken" };
+    }
+
+    // Check frequency of username change: twice a 15 days
+    const now = new Date();
+    const fifteenDaysAgo = new Date(now.getTime() - 15 * 24 * 60 * 60 * 1000);
+
+    // Filter changes to last 15 days
+    const recentChanges = updatedChanges.filter((changeStr: string) => {
+      const changeDate = new Date(changeStr);
+      return changeDate >= fifteenDaysAgo;
+    });
+
+    if (recentChanges.length >= 2) {
+      return { error: "You can only change your username twice every 15 days." };
+    }
+
+    // Append new change timestamp
+    updatedChanges = [...recentChanges, now.toISOString()];
+  }
+
+  // Perform database update
+  const { error: updateErr } = await supabase
     .from("profiles")
-    .update({ username: newUsername })
+    .update({
+      username: newUsername,
+      display_name: newDisplayName.trim(),
+      username_changes: updatedChanges,
+    })
     .eq("id", user.id);
 
-  if (error) return { error: "Failed to update username" };
+  if (updateErr) {
+    return { error: "Failed to update profile details" };
+  }
 
-  logActivity(user.id, "profile.username.changed", { new_username: newUsername }).catch(() => {});
+  if (isUsernameChanging) {
+    logActivity(user.id, "profile.username.changed", { new_username: newUsername }).catch(() => {});
+  }
 
   return { success: true };
+}
+
+export async function updateUsername(newUsername: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Must be logged in" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("display_name")
+    .eq("id", user.id)
+    .single();
+
+  const currentDisplayName = profile?.display_name || "";
+  return await updateProfile(newUsername, currentDisplayName);
 }

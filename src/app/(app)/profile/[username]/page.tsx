@@ -1,6 +1,7 @@
 import { getUserProfile } from "@/lib/actions/aura-actions";
 import { notFound } from "next/navigation";
 import { ProfileClient } from "./profile-client";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function ProfilePage({
   params,
@@ -14,11 +15,16 @@ export default async function ProfilePage({
     notFound();
   }
 
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const isOwnProfile = user ? result.profile.id === user.id : false;
+
   return (
     <ProfileClient
       profile={result.profile}
       events={result.events || []}
       history={result.history || []}
+      isOwnProfile={isOwnProfile}
     />
   );
 }

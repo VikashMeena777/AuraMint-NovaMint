@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Crown, Sparkles, ArrowRight, Zap, Users, Flame } from "lucide-react";
 import { updateUsername } from "@/lib/actions/aura-actions";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
 import { PremiumIcon } from "@/components/aura/premium-icon";
 
 const steps = [
@@ -39,6 +41,24 @@ export default function OnboardingPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
+  useEffect(() => {
+    async function fetchProfile() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("username")
+          .eq("id", user.id)
+          .single();
+        if (profile?.username && !profile.username.startsWith("user_")) {
+          setUsername(profile.username);
+        }
+      }
+    }
+    fetchProfile();
+  }, []);
+
   async function handleUsernameSubmit() {
     if (username.length < 3) {
       toast.error("Username must be at least 3 characters");
@@ -70,12 +90,12 @@ export default function OnboardingPage() {
 
       {/* Header Branding */}
       <div className="relative z-10 pt-8">
-        <div className="flex items-center gap-3">
+        <Link href="/dashboard" className="flex items-center gap-3 cursor-pointer hover:opacity-90 transition select-none">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 border border-primary/5 shadow-sm">
             <Crown className="h-[20px] w-[20px] text-primary" />
           </div>
           <span className="heading text-2xl tracking-tighter grad-text">AuraMint</span>
-        </div>
+        </Link>
       </div>
 
       {/* Main Container Card block */}

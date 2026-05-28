@@ -1,11 +1,15 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Flame, Calendar, TrendingUp, TrendingDown, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { Flame, Calendar, TrendingUp, TrendingDown, Sparkles, User, X } from "lucide-react";
 import { cn, formatAuraPoints } from "@/lib/utils";
 import { AuraEventCard } from "@/components/aura/aura-event-card";
 import { PremiumIcon } from "@/components/aura/premium-icon";
 import { getTierForAura, getTierProgress } from "@/lib/ai/prompts";
+import { updateProfile } from "@/lib/actions/aura-actions";
+import { toast } from "sonner";
 import {
   XAxis,
   YAxis,
@@ -24,13 +28,52 @@ export function ProfileClient({
   profile,
   events,
   history,
+  isOwnProfile,
 }: {
   profile: any;
   events: any[];
   history: any[];
+  isOwnProfile: boolean;
 }) {
   const tier = getTierForAura(profile.total_aura);
   const progress = getTierProgress(profile.total_aura);
+  const router = useRouter();
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [fullNameInput, setFullNameInput] = useState(profile.display_name || "");
+  const [usernameInput, setUsernameInput] = useState(profile.username || "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSaveProfile() {
+    if (!fullNameInput.trim()) {
+      toast.error("Please enter your name");
+      return;
+    }
+    const cleanUsername = usernameInput.trim().toLowerCase();
+    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+    if (!usernameRegex.test(cleanUsername)) {
+      toast.error("Username must be 3-20 characters, only letters, numbers, and underscores");
+      return;
+    }
+
+    setSaving(true);
+    const result = await updateProfile(cleanUsername, fullNameInput.trim());
+    setSaving(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success("Profile updated successfully! ✨");
+    setIsEditModalOpen(false);
+
+    if (cleanUsername !== profile.username) {
+      router.push(`/profile/${cleanUsername}`);
+    } else {
+      router.refresh();
+    }
+  }
 
   // Build chart data — cumulative aura over time
   let cumulative = 0;
@@ -71,7 +114,7 @@ export function ProfileClient({
             <div className="flex h-22 w-22 items-center justify-center rounded-2xl border-4 border-card bg-primary/15 text-4xl font-bold text-primary shadow-xl select-none">
               {(profile.display_name || profile.username).charAt(0).toUpperCase()}
             </div>
-            <div className="pb-1.5 min-w-0">
+            <div className="pb-1.5 min-w-0 flex-1">
               <h1 className="heading text-2xl font-black tracking-tight leading-none truncate">
                 {profile.display_name || profile.username}
               </h1>
@@ -79,6 +122,14 @@ export function ProfileClient({
                 @{profile.username}
               </p>
             </div>
+            {isOwnProfile && (
+              <button
+                onClick={() => setIsEditModalOpen(true)}
+                className="mb-1.5 rounded-xl border border-border bg-card/65 px-4.5 py-2.5 text-xs font-extrabold uppercase tracking-wider text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition active:scale-95 shrink-0 shadow-sm"
+              >
+                Edit Profile
+              </button>
+            )}
           </div>
 
           {/* Aura score balances */}
@@ -246,6 +297,103 @@ export function ProfileClient({
           </div>
         )}
       </div>
+
+      {/* Edit Profile Modal */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-sm sm:items-center p-4"
+            onClick={(e) => e.target === e.currentTarget && setIsEditModalOpen(false)}
+          >
+            <motion.div
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 280 }}
+              className="relative w-full max-w-md rounded-t-[2rem] bg-card p-7 shadow-2xl border border-border/40 sm:rounded-[2rem] overflow-hidden"
+            >
+              <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+
+              {/* Close Button */}
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="absolute right-5 top-5 rounded-xl border border-border bg-card/40 p-2.5 text-muted-foreground hover:text-foreground transition"
+              >
+                <X className="h-4.5 w-4.5" />
+              </button>
+
+              <div className="relative z-10">
+                <div className="mb-6 text-center">
+                  <h2 className="heading text-xl tracking-tight leading-none">Edit Profile</h2>
+                  <p className="mt-1.5 text-xs text-muted-foreground">Update your public identity details</p>
+                </div>
+
+                <div className="space-y-4">
+                  {/* Name field */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 pl-1">Name</label>
+                    <div className="relative">
+                      <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
+                      <input
+                        type="text"
+                        value={fullNameInput}
+                        onChange={(e) => setFullNameInput(e.target.value)}
+                        placeholder="Full Name"
+                        className="w-full rounded-2xl border border-border/80 bg-secondary/15 py-3.5 pl-11 pr-4 text-xs font-semibold transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Username field */}
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 pl-1">Username</label>
+                    <div className="relative">
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground/60">@</span>
+                      <input
+                        type="text"
+                        value={usernameInput}
+                        onChange={(e) => setUsernameInput(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20))}
+                        placeholder="username"
+                        className="w-full rounded-2xl border border-border/80 bg-secondary/15 py-3.5 pl-8 pr-4 text-xs font-semibold transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
+                      />
+                    </div>
+                    <p className="text-[9px] text-muted-foreground/50 pl-1 font-semibold uppercase tracking-wider leading-relaxed">
+                      💡 Note: You can change your username at most **twice every 15 days**.
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-4 flex gap-3">
+                    <button
+                      onClick={() => setIsEditModalOpen(false)}
+                      className="flex-1 rounded-2xl border border-border bg-card/45 py-3.5 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition active:scale-95"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveProfile}
+                      disabled={saving}
+                      className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-xs font-extrabold uppercase tracking-wider text-primary-foreground transition hover:brightness-110 shadow-lg glow-brand disabled:opacity-50 active:scale-95"
+                    >
+                      {saving ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/20 border-t-primary-foreground" />
+                      ) : (
+                        <>
+                          Save Changes
+                          <Sparkles className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

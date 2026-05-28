@@ -58,7 +58,7 @@ export function Sidebar({ profile }: { profile: ProfileData }) {
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-[290px] flex-col border-r border-border/25 bg-card/25 backdrop-blur-3xl lg:flex py-6 px-4">
       {/* ─── Header Logo ─── */}
-      <div className="flex items-center gap-3.5 px-3 mb-8">
+      <Link href="/dashboard" className="flex items-center gap-3.5 px-3 mb-8 cursor-pointer hover:opacity-90 transition select-none">
         <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 border border-primary/5 shadow-sm">
           <Crown className="h-[20px] w-[20px] text-primary" />
         </div>
@@ -66,7 +66,7 @@ export function Sidebar({ profile }: { profile: ProfileData }) {
           <h1 className="heading text-xl tracking-tighter grad-text leading-none">AuraMint</h1>
           <p className="text-[9px] uppercase tracking-[0.2em] font-extrabold text-muted-foreground/50 mt-1">by NovaMint</p>
         </div>
-      </div>
+      </Link>
 
       {/* ─── Aura Tier Card Widget ─── */}
       {profile && (

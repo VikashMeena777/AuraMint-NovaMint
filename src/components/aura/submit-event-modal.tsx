@@ -158,21 +158,28 @@ export function SubmitEventModal({
                       Category
                     </label>
                     <div className="flex flex-wrap gap-2">
-                      {CATEGORIES.map((cat) => (
-                        <button
-                          key={cat.value}
-                          onClick={() => { setCategory(cat.value); playHapticPop(); }}
-                          className={cn(
-                            "rounded-2xl px-4 py-2 text-xs font-bold transition-all border flex items-center gap-1.5",
-                            category === cat.value
-                              ? "bg-primary border-primary/20 text-primary-foreground shadow-sm"
-                              : "bg-secondary/40 border-transparent text-muted-foreground hover:bg-secondary/80"
-                          )}
-                        >
-                          <PremiumIcon emoji={cat.emoji} className="h-3.5 w-3.5" />
-                          <span>{cat.label}</span>
-                        </button>
-                      ))}
+                      {CATEGORIES.map((cat) => {
+                        const isSelected = category === cat.value;
+                        return (
+                          <motion.button
+                            key={cat.value}
+                            onClick={() => { setCategory(cat.value as typeof category); playHapticPop(); }}
+                            animate={isSelected ? { scale: 1.05 } : { scale: 1 }}
+                            whileTap={{ scale: 0.93 }}
+                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                            className={cn(
+                              "rounded-2xl px-4 py-2 text-xs font-bold transition-all border-2 flex items-center gap-1.5 cursor-pointer",
+                              isSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)] ring-2 ring-primary/30 ring-offset-1 ring-offset-card"
+                                : "bg-secondary/40 border-transparent text-muted-foreground hover:bg-secondary/80 hover:border-border/50"
+                            )}
+                          >
+                            <PremiumIcon emoji={cat.emoji} className="h-3.5 w-3.5" />
+                            <span>{cat.label}</span>
+                            {isSelected && <Sparkles className="h-3 w-3 animate-pulse ml-0.5" />}
+                          </motion.button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -200,10 +207,18 @@ export function SubmitEventModal({
                   </div>
 
                   {/* Vibe Roll Double or Nothing Option */}
-                  <div className="mb-6 rounded-2xl border border-primary/20 bg-primary/5 p-4 flex items-center justify-between">
+                  <div className={cn(
+                    "mb-6 rounded-2xl border-2 p-4 flex items-center justify-between transition-all duration-300",
+                    vibeRoll
+                      ? "border-primary/40 bg-primary/10 shadow-[0_0_24px_hsl(var(--primary)/0.15)]"
+                      : "border-border/30 bg-secondary/10"
+                  )}>
                     <div className="flex-1 min-w-0 pr-4">
-                      <p className="text-xs font-extrabold uppercase tracking-wider text-primary flex items-center gap-1.5 leading-none">
-                        <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                      <p className={cn(
+                        "text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 leading-none transition-colors",
+                        vibeRoll ? "text-primary" : "text-muted-foreground"
+                      )}>
+                        <Sparkles className={cn("h-3.5 w-3.5", vibeRoll && "animate-pulse")} />
                         Aura Vibe Roll Gamble
                       </p>
                       <p className="text-[10px] leading-relaxed text-muted-foreground mt-1.5">
@@ -212,16 +227,24 @@ export function SubmitEventModal({
                     </div>
                     <button
                       type="button"
+                      role="switch"
+                      aria-checked={vibeRoll}
                       onClick={() => { setVibeRoll(!vibeRoll); playHapticPop(); }}
                       className={cn(
-                        "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none",
-                        vibeRoll ? "bg-primary" : "bg-secondary"
+                        "relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 transition-all duration-300 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
+                        vibeRoll
+                          ? "bg-primary border-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
+                          : "bg-muted border-border/50"
                       )}
                     >
-                      <span
+                      <motion.span
+                        layout
+                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
                         className={cn(
-                          "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out",
-                          vibeRoll ? "translate-x-5" : "translate-x-0"
+                          "pointer-events-none inline-block h-5.5 w-5.5 mt-[1px] rounded-full shadow-lg transition-colors duration-300",
+                          vibeRoll
+                            ? "bg-primary-foreground ml-[22px]"
+                            : "bg-foreground/70 ml-[2px]"
                         )}
                       />
                     </button>
