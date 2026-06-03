@@ -62,7 +62,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${plusJakartaSans.variable} ${syne.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-[hsl(var(--background))] text-[hsl(var(--foreground))] antialiased relative">
+      <body className="min-h-screen text-[hsl(var(--foreground))] antialiased relative">
         {/* Global tactile grain overlay */}
         <div className="pointer-events-none fixed inset-0 z-50 grain opacity-[0.02] dark:opacity-[0.035] mix-blend-overlay" />
 

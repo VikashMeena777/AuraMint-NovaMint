@@ -212,7 +212,7 @@ export default function LandingPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background">
+    <div className="relative min-h-screen overflow-hidden bg-transparent">
       {/* ─── Background Premium FX ─── */}
       <div className="pointer-events-none fixed inset-0 z-0">
         {/* Animated Twinkling Stars */}

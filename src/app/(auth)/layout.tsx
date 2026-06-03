@@ -23,7 +23,7 @@ export default function AuthLayout({
   );
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-background px-4 py-8">
+    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-transparent px-4 py-8">
       {/* Background elements */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
         {/* Saturated radial grids */}

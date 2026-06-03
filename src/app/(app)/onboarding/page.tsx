@@ -81,7 +81,7 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-background px-4 py-8">
+    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-transparent px-4 py-8">
       {/* Background gradients */}
       <div className="pointer-events-none absolute inset-0 z-0">
         <div className="absolute -left-32 -top-32 h-96 w-96 rounded-full bg-primary/[0.04] blur-[120px]" />
