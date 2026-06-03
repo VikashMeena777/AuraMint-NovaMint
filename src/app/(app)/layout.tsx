@@ -58,12 +58,18 @@ export default async function AppLayout({
   }
 
   return (
-    <div className="flex min-h-screen">
+    <div className="relative flex min-h-screen">
+      {/* Cosmic Background for App */}
+      <div className="pointer-events-none fixed inset-0 z-0">
+        <div className="absolute inset-0 cosmic-mesh opacity-40" />
+        <div className="absolute inset-0 dot-grid opacity-20" />
+      </div>
+
       {/* Desktop Sidebar */}
       <Sidebar profile={userProfile} />
 
       {/* Main Content */}
-      <main className="flex-1 pb-24 lg:pb-0 lg:pl-72">
+      <main className="relative z-10 flex-1 pb-24 lg:pb-0 lg:pl-[290px]">
         <div className="mx-auto max-w-4xl px-3 py-4 sm:px-6 sm:py-6">{children}</div>
       </main>
 

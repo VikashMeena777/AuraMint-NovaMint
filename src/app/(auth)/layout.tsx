@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import Link from "next/link";
-import { Crown } from "lucide-react";
 
 export default function AuthLayout({
   children,
@@ -12,29 +10,34 @@ export default function AuthLayout({
   // Generate star positions on client only to avoid hydration mismatch
   const stars = useMemo(
     () =>
-      Array.from({ length: 30 }, () => ({
+      Array.from({ length: 40 }, () => ({
         left: `${Math.random() * 100}%`,
         top: `${Math.random() * 100}%`,
         dur: `${3 + Math.random() * 4}s`,
-        del: `${Math.random() * 3}s`,
-        size: `${1 + Math.random() * 1.5}px`,
+        del: `${Math.random() * 5}s`,
+        size: `${1 + Math.random() * 2}px`,
       })),
     []
   );
 
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-between overflow-hidden bg-transparent px-4 py-8">
-      {/* Background elements */}
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-transparent px-4 py-8">
+      {/* ═══ Cosmic Background ═══ */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        {/* Saturated radial grids */}
-        <div className="absolute -left-40 -top-40 h-[600px] w-[600px] rounded-full bg-primary/[0.04] blur-[150px]" />
-        <div className="absolute -bottom-40 -right-40 h-[600px] w-[600px] rounded-full bg-accent/[0.04] blur-[150px]" />
-        
+        {/* Cosmic gradient mesh */}
+        <div className="absolute inset-0 cosmic-mesh animate-breathe opacity-60" />
+        {/* Dot grid */}
+        <div className="absolute inset-0 dot-grid opacity-30" />
+        {/* Floating orbs */}
+        <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-primary/15 blur-[100px] animate-breathe" />
+        <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-accent/15 blur-[120px] animate-breathe" style={{ animationDelay: "3s" }} />
+        <div className="absolute top-1/2 left-3/4 h-48 w-48 rounded-full bg-emerald-500/8 blur-[80px] animate-breathe" style={{ animationDelay: "5s" }} />
+
         {/* Twinkling stars */}
         {stars.map((s, i) => (
           <div
             key={i}
-            className="star absolute rounded-full bg-primary/20"
+            className="star absolute rounded-full bg-foreground/20"
             style={{
               left: s.left,
               top: s.top,
@@ -47,24 +50,14 @@ export default function AuthLayout({
         ))}
       </div>
 
-      {/* Header Logo */}
-      <div className="relative z-10 flex flex-col items-center pt-8">
-        <Link href="/" className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 border border-primary/10 shadow-sm">
-            <Crown className="h-[20px] w-[20px] text-primary" />
-          </div>
-          <span className="heading text-2xl tracking-tighter grad-text">AuraMint</span>
-        </Link>
-      </div>
-
-      {/* Main card box container */}
-      <div className="relative z-10 my-auto w-full max-w-md pt-8 pb-12">
+      {/* Main card container — login/signup cards handle their own logo */}
+      <div className="relative z-10 w-full max-w-md">
         {children}
       </div>
 
-      {/* Footer copyright */}
-      <div className="relative z-10 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/35">
+      {/* Footer */}
+      <div className="relative z-10 mt-8 text-center">
+        <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/30">
           © {new Date().getFullYear()} AuraMint. All rights reserved.
         </p>
       </div>
