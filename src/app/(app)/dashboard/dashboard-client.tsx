@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import { AdBanner } from "@/components/aura/ad-banner";
 import { DailyReportCard } from "@/components/aura/daily-report-card";
+import { createClient } from "@/lib/supabase/client";
 
 type FeedTab = "hot" | "fresh" | "top";
 
@@ -24,12 +25,31 @@ export default function DashboardClient() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+
+  // Get current user ID for ownership check
+  useEffect(() => {
+    async function getUser() {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) setCurrentUserId(user.id);
+    }
+    getUser();
+  }, []);
 
   const loadEvents = useCallback(async (reset = false) => {
     const currentPage = reset ? 0 : page;
     setLoading(true);
     const result = await getPublicFeed(tab, currentPage);
-    const newEvents = result.events || [];
+    let newEvents = result.events || [];
+    
+    // Sort boosted events first (they get priority visibility)
+    newEvents = newEvents.sort((a: any, b: any) => {
+      if (a.is_boosted && !b.is_boosted) return -1;
+      if (!a.is_boosted && b.is_boosted) return 1;
+      return 0;
+    });
+    
     setEvents(reset ? newEvents : [...events, ...newEvents]);
     setHasMore(result.hasMore);
     if (!reset) setPage(currentPage + 1);
@@ -100,7 +120,12 @@ export default function DashboardClient() {
       <div className="space-y-5">
         <AnimatePresence mode="popLayout">
           {events.map((ev, i) => (
-            <AuraEventCard key={ev.id} event={ev} index={i} />
+            <AuraEventCard
+              key={ev.id}
+              event={ev}
+              index={i}
+              isOwner={currentUserId === ev.user_id}
+            />
           ))}
         </AnimatePresence>
 

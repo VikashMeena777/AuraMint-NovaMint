@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Crown, LayoutDashboard, Trophy, User, Gem, Flame, Moon, Sun, LogOut, Sparkles, Medal } from "lucide-react";
+import { Crown, LayoutDashboard, Trophy, User, Gem, Flame, Moon, Sun, LogOut, Sparkles, Medal, BarChart3 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { cn, formatAuraPoints } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/client";
@@ -25,6 +25,7 @@ const navItems = [
   { href: "/dashboard", icon: LayoutDashboard, label: "Feed" },
   { href: "/leaderboard", icon: Trophy, label: "Leaderboard" },
   { href: "/badges", icon: Medal, label: "Badges" },
+  { href: "/analytics", icon: BarChart3, label: "Analytics" },
   { href: "/profile", icon: User, label: "Profile" },
   { href: "/premium", icon: Gem, label: "Premium" },
 ];
@@ -60,7 +61,7 @@ export function Sidebar({ profile }: { profile: ProfileData }) {
       <div className="grain-overlay" />
 
       {/* ─── Header Logo ─── */}
-      <Link href="/dashboard" className="relative z-10 flex items-center gap-3 px-3 mb-8 cursor-pointer hover:opacity-90 transition select-none">
+      <Link href="/" className="relative z-10 flex items-center gap-3 px-3 mb-8 cursor-pointer hover:opacity-90 transition select-none">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/15">
           <Crown className="h-5 w-5 text-primary" />
         </div>

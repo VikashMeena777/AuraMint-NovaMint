@@ -320,7 +320,7 @@ export function ProfileClient({
               {/* Close Button */}
               <button
                 onClick={() => setIsEditModalOpen(false)}
-                className="absolute right-5 top-5 rounded-xl border border-border bg-card/40 p-2.5 text-muted-foreground hover:text-foreground transition"
+                className="absolute right-5 top-5 z-20 rounded-xl border border-border bg-card/40 p-2.5 text-muted-foreground hover:text-foreground transition"
               >
                 <X className="h-4.5 w-4.5" />
               </button>

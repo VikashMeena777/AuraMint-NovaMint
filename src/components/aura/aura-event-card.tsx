@@ -1,11 +1,11 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles, ArrowUp, ArrowDown, Share2 } from "lucide-react";
+import { Sparkles, ArrowUp, ArrowDown, Share2, Rocket } from "lucide-react";
 import { cn, formatAuraPoints, timeAgo } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/ai/prompts";
 import { useState } from "react";
-import { reactToEvent, voteOnEvent } from "@/lib/actions/aura-actions";
+import { reactToEvent, voteOnEvent, boostEvent } from "@/lib/actions/aura-actions";
 import { toast } from "sonner";
 import { ShareCardModal } from "@/components/aura/share-card-modal";
 import { PremiumIcon } from "@/components/aura/premium-icon";
@@ -23,6 +23,7 @@ type AuraEvent = {
   downvotes: number;
   reaction_counts: Record<string, number>;
   created_at: string;
+  is_boosted?: boolean;
   profiles?: {
     username: string;
     display_name: string;
@@ -46,13 +47,24 @@ const tierEmojis: Record<string, string> = {
   "Main Character": "🔥", Legendary: "👑", Mythical: "⚡", "GOD MODE": "🌟",
 };
 
-export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: number }) {
+export function AuraEventCard({ event, index = 0, isOwner = false }: { event: AuraEvent; index?: number; isOwner?: boolean }) {
   const [localReactions, setLocalReactions] = useState(event.reaction_counts || {});
   const [localUpvotes, setLocalUpvotes] = useState(event.upvotes);
   const [localDownvotes, setLocalDownvotes] = useState(event.downvotes);
   const [activeReaction, setActiveReaction] = useState<string | null>(null);
   const [userVote, setUserVote] = useState<1 | -1 | null>(null);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [isBoosted, setIsBoosted] = useState(event.is_boosted || false);
+  const [boosting, setBoosting] = useState(false);
+
+  async function handleBoost() {
+    if (isBoosted || boosting) return;
+    setBoosting(true);
+    const result = await boostEvent(event.id);
+    if (result.error) { toast.error(result.error); }
+    else { setIsBoosted(true); toast.success("Event boosted! 🚀 It'll get more visibility."); }
+    setBoosting(false);
+  }
 
   const isPositive = event.aura_points >= 0;
   const isLegendary = Math.abs(event.aura_points) >= 5000;
@@ -106,6 +118,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
         transition={{ duration: 0.45, ease: "easeOut", delay: index * 0.05 }}
         className={cn(
           "glass noise relative overflow-hidden transition-all rounded-3xl border border-border/30",
+          isBoosted && "ring-2 ring-primary/30 shadow-[0_0_30px_rgba(232,163,23,0.12)]",
           isLegendary && isPositive && "glow-gold",
           isLegendary && !isPositive && "glow-loss",
           !isLegendary && isPositive && "glow-win",
@@ -118,8 +131,18 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
           isPositive ? "bg-emerald-500/10" : "bg-red-500/10"
         )} />
 
+        {/* ── Boosted Badge ── */}
+        {isBoosted && (
+          <div className="relative z-10 mx-6 mt-5 mb-0">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-primary/15 border border-primary/25 px-3 py-1 text-[10px] font-extrabold uppercase tracking-widest text-primary animate-pulse">
+              <Rocket className="h-3 w-3" />
+              Boosted
+            </span>
+          </div>
+        )}
+
         {/* ── Header details ── */}
-        <div className="relative z-10 flex items-center justify-between px-6 pt-6">
+        <div className={cn("relative z-10 flex items-center justify-between px-6", isBoosted ? "pt-3" : "pt-6")}>
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 border border-primary/5 text-sm font-black text-primary shadow-sm">
               {event.profiles
@@ -240,6 +263,16 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
               <Share2 className="h-3.5 w-3.5" />
               <span>Card</span>
             </button>
+            {isOwner && !isBoosted && (
+              <button
+                onClick={handleBoost}
+                disabled={boosting}
+                className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/20 px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider text-amber-500 transition hover:bg-amber-500/20 disabled:opacity-50"
+              >
+                <Rocket className="h-3.5 w-3.5" />
+                <span>{boosting ? "..." : "Boost"}</span>
+              </button>
+            )}
             <button
               onClick={handleShare}
               className="flex items-center gap-2 rounded-xl border border-border bg-card/25 px-3.5 py-2 text-xs font-extrabold uppercase tracking-wider text-muted-foreground transition hover:bg-secondary hover:text-foreground"
@@ -263,6 +296,7 @@ export function AuraEventCard({ event, index = 0 }: { event: AuraEvent; index?: 
           username: event.profiles?.username || "anonymous",
           tier: event.profiles?.current_tier || "NPC",
           event_id: event.id,
+          isPremium: isOwner,
         }}
       />
     </>

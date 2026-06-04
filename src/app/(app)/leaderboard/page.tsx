@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { getLeaderboard } from "@/lib/actions/aura-actions";
 import { cn, formatAuraPoints } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { Trophy, Clock, CalendarDays, Infinity, Flame } from "lucide-react";
+import { Trophy, Clock, CalendarDays, Infinity, Flame, Crown } from "lucide-react";
 import { PremiumIcon } from "@/components/aura/premium-icon";
 
 const tierEmojis: Record<string, string> = {
@@ -142,6 +142,11 @@ export default function LeaderboardPage() {
                           <p className="truncate text-xs font-bold leading-tight flex items-center gap-1.5">
                             <span>{user.display_name || user.username}</span>
                             <PremiumIcon emoji={tierEmojis[user.current_tier]} className="h-3.5 w-3.5" />
+                            {user.is_premium && (
+                              <span className="inline-flex items-center gap-0.5 rounded-full bg-yellow-500/15 px-1.5 py-0.5 border border-yellow-500/20">
+                                <Crown className="h-2.5 w-2.5 text-yellow-400" />
+                              </span>
+                            )}
                           </p>
                           <p className="truncate text-[10px] font-semibold text-muted-foreground/60 mt-0.5 flex items-center gap-2">
                             <span>@{user.username}</span>

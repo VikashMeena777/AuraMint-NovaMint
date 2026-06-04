@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { useTheme } from "next-themes";
@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { PremiumIcon } from "@/components/aura/premium-icon";
 import { playHapticPop, playAuraGainSound, playAuraLossSound } from "@/lib/utils/sound";
+import { createClient } from "@/lib/supabase/client";
 
 /* ─── Static Data ─── */
 const sampleEvents = [
@@ -140,6 +141,14 @@ export default function LandingPage() {
   const [demoStatus, setDemoStatus] = useState<"idle" | "loading" | "success">("idle");
   const [demoLoadingText, setDemoLoadingText] = useState("Analyzing vibe checks...");
   const [demoResult, setDemoResult] = useState<{ points: number; emoji: string; verdict: string; tag: string } | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(({ data }) => {
+      if (data.user) setIsLoggedIn(true);
+    });
+  }, []);
 
   async function handleDemoCalculate() {
     if (!demoInput.trim()) return;
@@ -212,12 +221,20 @@ export default function LandingPage() {
             >
               {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
-            <Link href="/login" className="hidden sm:block text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">
-              Login
-            </Link>
-            <Link href="/signup" className="bg-primary text-primary-foreground font-bold px-5 py-2.5 rounded-xl glow-brand hover:brightness-110 transition-all active:scale-95 text-xs uppercase tracking-wide">
-              Get Started
-            </Link>
+            {isLoggedIn ? (
+              <Link href="/dashboard" className="bg-primary text-primary-foreground font-bold px-5 py-2.5 rounded-xl glow-brand hover:brightness-110 transition-all active:scale-95 text-xs uppercase tracking-wide">
+                Dashboard
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="hidden sm:block text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors uppercase tracking-wider">
+                  Login
+                </Link>
+                <Link href="/signup" className="bg-primary text-primary-foreground font-bold px-5 py-2.5 rounded-xl glow-brand hover:brightness-110 transition-all active:scale-95 text-xs uppercase tracking-wide">
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>
@@ -246,10 +263,10 @@ export default function LandingPage() {
           {/* CTAs */}
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto animate-fade-up" style={{ animationDelay: "0.4s" }}>
             <Link
-              href="/signup"
+              href={isLoggedIn ? "/dashboard" : "/signup"}
               className="bg-primary text-primary-foreground font-bold px-8 py-4 rounded-xl glow-brand hover:brightness-110 hover:-translate-y-1 transition-all active:scale-95 uppercase tracking-wide text-sm flex items-center justify-center gap-2"
             >
-              Start Free — No Credit Card
+              {isLoggedIn ? "Go to Dashboard" : "Start Free \u2014 No Credit Card"}
               <ArrowRight className="h-4 w-4" />
             </Link>
             <a
@@ -478,10 +495,10 @@ export default function LandingPage() {
                 <div className="mt-6 mono text-4xl font-bold">₹0<span className="text-sm text-muted-foreground">/mo</span></div>
               </div>
               <ul className="space-y-3 mb-8 flex-grow">
-                {["3 AI logs per day", "Basic leaderboards", "Standard viral cards"].map((item) => (
+                {["3 AI logs per day", "Basic leaderboards", "Standard viral cards", "Default theme"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-sm"><Check className="h-4 w-4 text-foreground" />{item}</li>
                 ))}
-                {["Detailed Analytics", "Custom Badges"].map((item) => (
+                {["Event Boosts", "Detailed Analytics", "Custom Badges", "Premium Cards", "Ad-free", "Early Access"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-sm text-muted-foreground/50"><X className="h-4 w-4" />{item}</li>
                 ))}
               </ul>
@@ -504,7 +521,7 @@ export default function LandingPage() {
                 <div className="mt-6 mono text-4xl font-bold">₹99<span className="text-sm text-muted-foreground">/mo</span></div>
               </div>
               <ul className="space-y-3 mb-8 flex-grow relative z-10">
-                {["Unlimited AI logs", "Priority leaderboards", "Premium viral cards", "Detailed Analytics", "Custom Badges", "Early feature access"].map((item) => (
+                {["Unlimited AI logs", "5 Boosts/month 🚀", "Priority leaderboards", "Premium holographic cards", "Detailed analytics dashboard", "All custom badges", "6 exclusive themes", "Ad-free experience", "Early feature access"].map((item) => (
                   <li key={item} className="flex items-center gap-3 text-sm"><Check className="h-4 w-4 text-primary" />{item}</li>
                 ))}
               </ul>
@@ -531,11 +548,11 @@ export default function LandingPage() {
             Join thousands of Gen-Z users flexing their aura scores. Free forever. No ads on feed.
           </p>
           <Link
-            href="/signup"
+            href={isLoggedIn ? "/dashboard" : "/signup"}
             className="mt-8 flex items-center gap-2.5 rounded-xl bg-primary px-10 py-5 text-sm font-extrabold uppercase tracking-wider text-primary-foreground transition hover:scale-[1.03] hover:brightness-110 glow-brand"
           >
             <Sparkles className="h-4 w-4" />
-            Start Your Aura Journey
+            {isLoggedIn ? "Go to Dashboard" : "Start Your Aura Journey"}
           </Link>
         </motion.div>
       </section>

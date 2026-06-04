@@ -17,6 +17,7 @@ type ShareCardData = {
   username: string;
   tier: string;
   event_id?: string;
+  isPremium?: boolean;
 };
 
 export function ShareCardModal({
@@ -93,9 +94,14 @@ export function ShareCardModal({
               ref={cardRef}
               className={cn(
                 "relative overflow-hidden rounded-[2.25rem] p-7 shadow-2xl border",
+                data.isPremium && "ring-2 ring-yellow-400/30",
                 isPositive
-                  ? "bg-gradient-to-br from-emerald-950 via-teal-950 to-emerald-900 border-emerald-500/20"
-                  : "bg-gradient-to-br from-red-950 via-rose-950 to-red-900 border-red-500/20"
+                  ? data.isPremium
+                    ? "bg-gradient-to-br from-emerald-950 via-teal-900 to-emerald-800 border-emerald-400/30"
+                    : "bg-gradient-to-br from-emerald-950 via-teal-950 to-emerald-900 border-emerald-500/20"
+                  : data.isPremium
+                    ? "bg-gradient-to-br from-red-950 via-rose-900 to-red-800 border-red-400/30"
+                    : "bg-gradient-to-br from-red-950 via-rose-950 to-red-900 border-red-500/20"
               )}
             >
               {/* Noise texture */}
@@ -113,14 +119,33 @@ export function ShareCardModal({
               )} />
               <div className="absolute -left-20 -bottom-20 h-48 w-48 rounded-full bg-white/5 blur-3xl pointer-events-none" />
 
+              {/* Premium holographic shimmer */}
+              {data.isPremium && (
+                <div
+                  className="absolute inset-0 pointer-events-none opacity-10"
+                  style={{
+                    background: "linear-gradient(135deg, transparent 30%, rgba(255,215,0,0.3) 50%, transparent 70%)",
+                    backgroundSize: "200% 200%",
+                    animation: "shimmer 3s ease-in-out infinite",
+                  }}
+                />
+              )}
+
               <div className="relative z-10 flex flex-col justify-between min-h-[340px]">
                 {/* Header User info */}
                 <div>
                   <div className="flex items-center justify-between text-white/50">
                     <span className="text-xs font-bold uppercase tracking-wider">@{data.username}</span>
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest bg-white/10 px-2.5 py-0.5 rounded-full text-white/70">
-                      {data.tier}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      {data.isPremium && (
+                        <span className="text-[9px] font-black uppercase tracking-widest bg-gradient-to-r from-yellow-400/20 to-amber-400/20 border border-yellow-400/30 px-2 py-0.5 rounded-full text-yellow-300">
+                          ✦ Premium
+                        </span>
+                      )}
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest bg-white/10 px-2.5 py-0.5 rounded-full text-white/70">
+                        {data.tier}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Quoted Moment Description */}

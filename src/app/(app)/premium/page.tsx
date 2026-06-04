@@ -2,18 +2,22 @@
 
 import { useState, useEffect, Suspense } from "react";
 import { motion } from "framer-motion";
-import { Crown, Sparkles, Zap, Shield, Palette, Ban, Check, Loader2 } from "lucide-react";
+import { Crown, Sparkles, Zap, Shield, Palette, Ban, Check, Loader2, Rocket, BarChart3, Medal, Trophy } from "lucide-react";
 import { createPremiumOrder } from "@/lib/actions/payment-actions";
 import { toast } from "sonner";
 import { useSearchParams } from "next/navigation";
 
 const features = [
-  { icon: Zap, label: "Unlimited aura events/day", free: "5/day", premium: "Unlimited" },
+  { icon: Zap, label: "Aura events per day", free: "3/day", premium: "Unlimited" },
   { icon: Sparkles, label: "AI verdict quality", free: "Standard", premium: "Extra savage & dramatic" },
-  { icon: Crown, label: "Leaderboard access", free: "Global only", premium: "Global + Friends" },
+  { icon: Rocket, label: "Event boosts", free: "0", premium: "5/month" },
+  { icon: Trophy, label: "Priority leaderboards", free: "Basic", premium: "Priority + Crown badge" },
+  { icon: Shield, label: "Viral share cards", free: "Standard", premium: "Premium holographic" },
+  { icon: BarChart3, label: "Detailed analytics", free: "Not available", premium: "Full insights dashboard" },
+  { icon: Medal, label: "Custom badges", free: "Locked", premium: "All unlockable" },
   { icon: Palette, label: "Aura themes", free: "Default", premium: "6 exclusive themes" },
-  { icon: Shield, label: "Share cards", free: "With watermark", premium: "No watermark + custom" },
-  { icon: Ban, label: "Ads", free: "Banner ads", premium: "Ad-free" },
+  { icon: Ban, label: "Ads", free: "Banner ads", premium: "Ad-free experience" },
+  { icon: Crown, label: "Early feature access", free: "No", premium: "First to try new features" },
 ];
 
 function PremiumContent() {
@@ -103,11 +107,11 @@ function PremiumContent() {
           <span className="text-[10px] font-extrabold uppercase tracking-widest text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/10 inline-block mb-3 shadow-inner">Monthly Plan</span>
           <div className="flex items-baseline justify-center gap-1.5 mt-2">
             <span className="heading text-5xl font-black text-primary" style={{ fontFamily: "var(--font-display)" }}>
-              ₹199
+              ₹99
             </span>
             <span className="text-xs font-bold text-muted-foreground/80 uppercase tracking-wide">/ Month</span>
           </div>
-          <p className="mt-2 text-[10px] uppercase font-bold tracking-widest text-muted-foreground/50">or $4.99/month for international fans</p>
+          <p className="mt-2 text-[10px] uppercase font-bold tracking-widest text-muted-foreground/50">or $1.99/month for international fans</p>
         </div>
 
         {/* Feature comparison table rows list */}

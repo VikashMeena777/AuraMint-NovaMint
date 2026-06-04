@@ -7,7 +7,7 @@ const CASHFREE_API_BASE = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production"
   ? "https://api.cashfree.com/pg"
   : "https://sandbox.cashfree.com/pg";
 
-const PLAN_PRICE = 19900; // ₹199 in paise
+const PLAN_PRICE = 9900; // ₹99 in paise
 
 /**
  * Create a Cashfree payment order for premium upgrade.
@@ -134,10 +134,10 @@ export async function verifyPayment(orderId: string) {
     const data = await response.json();
 
     if (data.order_status === "PAID") {
-      // Upgrade to premium
+      // Upgrade to premium + grant 5 boosts
       await supabase
         .from("profiles")
-        .update({ is_premium: true })
+        .update({ is_premium: true, boosts_remaining: 5 })
         .eq("id", user.id);
 
       await supabase

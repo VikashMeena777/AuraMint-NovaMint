@@ -333,7 +333,7 @@ export async function getLeaderboard(
     // All-time: just read total_aura from profiles
     const { data, error } = await supabase
       .from("profiles")
-      .select("id, username, display_name, avatar_url, total_aura, current_tier, streak_days")
+      .select("id, username, display_name, avatar_url, total_aura, current_tier, streak_days, is_premium")
       .order("total_aura", { ascending: false })
       .range(from, to);
 
@@ -397,7 +397,7 @@ export async function getLeaderboard(
   const userIds = sorted.map(([uid]) => uid);
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, username, display_name, avatar_url, current_tier, streak_days")
+    .select("id, username, display_name, avatar_url, current_tier, streak_days, is_premium")
     .in("id", userIds);
 
   const profileMap = new Map((profiles || []).map(p => [(p as any).id, p]));
@@ -544,4 +544,188 @@ export async function updateUsername(newUsername: string) {
 
   const currentDisplayName = profile?.display_name || "";
   return await updateProfile(newUsername, currentDisplayName);
+}
+
+// ─── Boost an Event (Premium Feature) ───
+export async function boostEvent(eventId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Must be logged in" };
+
+  // Verify premium + has boosts
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("is_premium, boosts_remaining")
+    .eq("id", user.id)
+    .single();
+
+  if (!profile || !(profile as any).is_premium) {
+    return { error: "Boost is a Premium feature. Upgrade to unlock!" };
+  }
+
+  const boostsLeft = (profile as any).boosts_remaining || 0;
+  if (boostsLeft <= 0) {
+    return { error: "No boosts remaining this month. Resets on the 1st!" };
+  }
+
+  // Verify event belongs to user
+  const { data: event } = await supabase
+    .from("aura_events")
+    .select("id, user_id, is_boosted")
+    .eq("id", eventId)
+    .single();
+
+  if (!event || (event as any).user_id !== user.id) {
+    return { error: "You can only boost your own events" };
+  }
+
+  if ((event as any).is_boosted) {
+    return { error: "This event is already boosted! 🚀" };
+  }
+
+  // Apply the boost
+  const { error: boostErr } = await supabase
+    .from("aura_events")
+    .update({ is_boosted: true, boosted_at: new Date().toISOString() })
+    .eq("id", eventId);
+
+  if (boostErr) return { error: "Failed to boost event" };
+
+  // Deduct a boost
+  const { error: profileErr } = await supabase
+    .from("profiles")
+    .update({ boosts_remaining: boostsLeft - 1 })
+    .eq("id", user.id);
+
+  if (profileErr) return { error: "Failed to update boost count" };
+
+  logActivity(user.id, "event.boosted", { event_id: eventId }).catch(() => {});
+
+  return { success: true, boostsRemaining: boostsLeft - 1 };
+}
+
+// ─── Analytics Data (Premium Feature) ───
+export async function getAnalyticsData() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Must be logged in" };
+
+  // Fetch all user events (max 500 for perf)
+  const { data: events, error } = await supabase
+    .from("aura_events")
+    .select("aura_points, category, created_at, ai_vibe_tag, description, upvotes, is_boosted")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: true })
+    .limit(500);
+
+  if (error) return { error: "Failed to load analytics" };
+  if (!events || events.length === 0) return { events: [], isEmpty: true };
+
+  // Fetch profile for context
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("total_aura, current_tier, streak_days, is_premium, boosts_remaining, created_at")
+    .eq("id", user.id)
+    .single();
+
+  // ── Daily Trend (last 30 days) ──
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dailyMap = new Map<string, { gain: number; loss: number; count: number }>();
+
+  for (let d = new Date(thirtyDaysAgo); d <= now; d.setDate(d.getDate() + 1)) {
+    const key = d.toISOString().split("T")[0];
+    dailyMap.set(key, { gain: 0, loss: 0, count: 0 });
+  }
+
+  const typedEvents = events as { aura_points: number; category: string; created_at: string; ai_vibe_tag: string; description: string; upvotes: number; is_boosted: boolean }[];
+
+  for (const e of typedEvents) {
+    const day = new Date(e.created_at).toISOString().split("T")[0];
+    const entry = dailyMap.get(day);
+    if (entry) {
+      if (e.aura_points >= 0) entry.gain += e.aura_points;
+      else entry.loss += Math.abs(e.aura_points);
+      entry.count++;
+    }
+  }
+
+  const dailyTrend = Array.from(dailyMap.entries()).map(([date, data]) => ({
+    date,
+    label: new Date(date).toLocaleDateString("en", { month: "short", day: "numeric" }),
+    gain: data.gain,
+    loss: data.loss,
+    net: data.gain - data.loss,
+    count: data.count,
+  }));
+
+  // ── Category Breakdown ──
+  const categoryMap = new Map<string, { total: number; count: number; wins: number; losses: number }>();
+  for (const e of typedEvents) {
+    const cat = e.category || "random";
+    const entry = categoryMap.get(cat) || { total: 0, count: 0, wins: 0, losses: 0 };
+    entry.total += e.aura_points;
+    entry.count++;
+    if (e.aura_points >= 0) entry.wins++; else entry.losses++;
+    categoryMap.set(cat, entry);
+  }
+
+  const categoryBreakdown = Array.from(categoryMap.entries()).map(([cat, data]) => ({
+    category: cat,
+    total: data.total,
+    count: data.count,
+    wins: data.wins,
+    losses: data.losses,
+    avgPoints: Math.round(data.total / data.count),
+  })).sort((a, b) => b.count - a.count);
+
+  // ── Win/Loss Stats ──
+  const wins = typedEvents.filter(e => e.aura_points >= 0);
+  const losses = typedEvents.filter(e => e.aura_points < 0);
+  const totalGain = wins.reduce((s, e) => s + e.aura_points, 0);
+  const totalLoss = losses.reduce((s, e) => s + Math.abs(e.aura_points), 0);
+
+  // ── Top Events ──
+  const sortedByPoints = [...typedEvents].sort((a, b) => Math.abs(b.aura_points) - Math.abs(a.aura_points));
+  const topWin = sortedByPoints.find(e => e.aura_points > 0);
+  const topLoss = sortedByPoints.find(e => e.aura_points < 0);
+  const mostVoted = [...typedEvents].sort((a, b) => (b.upvotes || 0) - (a.upvotes || 0))[0];
+
+  // ── Vibe Tags Distribution ──
+  const vibeMap = new Map<string, number>();
+  for (const e of typedEvents) {
+    if (e.ai_vibe_tag) {
+      vibeMap.set(e.ai_vibe_tag, (vibeMap.get(e.ai_vibe_tag) || 0) + 1);
+    }
+  }
+  const vibeDistribution = Array.from(vibeMap.entries())
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 8);
+
+  // ── Boosted Events Count ──
+  const boostedCount = typedEvents.filter(e => e.is_boosted).length;
+
+  return {
+    profile: profile as any,
+    stats: {
+      totalEvents: typedEvents.length,
+      totalWins: wins.length,
+      totalLosses: losses.length,
+      totalGain,
+      totalLoss,
+      netAura: totalGain - totalLoss,
+      winRate: Math.round((wins.length / typedEvents.length) * 100),
+      avgPoints: Math.round((totalGain - totalLoss) / typedEvents.length),
+      boostedCount,
+    },
+    dailyTrend,
+    categoryBreakdown,
+    vibeDistribution,
+    highlights: {
+      topWin: topWin ? { description: topWin.description, points: topWin.aura_points } : null,
+      topLoss: topLoss ? { description: topLoss.description, points: topLoss.aura_points } : null,
+      mostVoted: mostVoted ? { description: mostVoted.description, upvotes: mostVoted.upvotes } : null,
+    },
+  };
 }

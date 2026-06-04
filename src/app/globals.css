@@ -556,6 +556,14 @@ body {
 /* ═══════════════════════════════════════════════════
    §9  ACCESSIBILITY: REDUCED MOTION
    ═══════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════
+   §10  PREMIUM SHIMMER
+   ═══════════════════════════════════════════════════ */
+@keyframes shimmer {
+  0%, 100% { background-position: 200% 200%; }
+  50% { background-position: 0% 0%; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-fade-up,
   .animate-float,
