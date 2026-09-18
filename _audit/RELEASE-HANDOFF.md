@@ -1,9 +1,23 @@
 # AuraMint release handoff
 
-## Status: preview deployed; minting and purchase paths BLOCKED by empty deployment env (live-verified); visual sign-off delegated; provider E2E and production promotion remain
+## Status: REDESIGN IS LIVE IN PRODUCTION (operator-directed push); minting and purchase blocked by empty deployment env until Upstash + Cashfree vars are supplied; visual sign-off delegated; provider E2E remains
 
-Preview: https://auramint-bxuikollm-novamint-networks-projects.vercel.app
-Deployment: `dpl_4nidZffQLqgJvWiW6jW4KFaeKtem` (READY, includes all three fixes below). Production was not promoted.
+**Production (operator-directed, 2026-09-18):** the working tree was committed as `358e066` and pushed to
+`VikashMeena777/AuraMint-NovaMint` (`f3a0e82..358e066`), which built and deployed
+`dpl_EUmSsjPSircztFc5D2QY9wJcYAhH` (READY) to the original domain **https://auramint.novamintnetworks.in**
+— verified live: homepage carries the new design, `/reset-password` is 200 (was 404), and
+`/api/cron/reconcile-payments` enforces auth (401, was 404). Rollback target if needed:
+`dpl_HBwcnBs6dtSZWmxY5xHG2qpc4VT9` (previous production build, `f3a0e82`).
+
+**Live-verified consequence (same day):** because `UPSTASH_REDIS_REST_URL`/`UPSTASH_REDIS_REST_TOKEN`
+are empty, the fail-closed rate limiter now denies minting on the production domain too — a real
+signed-in submission returned "Service temporarily unavailable. Please try again shortly." (throwaway
+account, deleted after; 0 residue verified). Purchases fail the same way one step earlier. **Env-var
+edits do not apply to existing deployments — after adding the five vars, redeploy (push any commit or
+use Redeploy in Vercel) for the live site to pick them up.**
+
+Preview (previous deployment, still available): https://auramint-bxuikollm-novamint-networks-projects.vercel.app
+Deployment: `dpl_4nidZffQLqgJvWiW6jW4KFaeKtem` (READY, includes all three fixes below).
 Superseded previews: `dpl_EiDMbZACdnmUuRPBvCRQq1EU5CYu` (auramint-6thwm1klq…, two fixes) and `dpl_HJRXSRcdNYzTqkEySqtutCLSfYiG` (auramint-8dtya8dkz…).
 
 ### Bugs found and fixed (all live on the current preview)
@@ -131,8 +145,11 @@ authentication or payment is established.
    `UPSTASH_REDIS_REST_TOKEN` in the Vercel project environment (or an authorized secret store).
    Do not send secrets in chat. Adding only the Cashfree trio is NOT sufficient: the fail-closed rate
    limiter denies before credentials are read until Upstash is configured, so minting and purchases
-   stay dead. Keep sandbox and production credentials separate. Confirm the webhook signing
-   credential against Cashfree's current documentation.
+   stay dead on the live domain. The values do not exist locally either (`.env.local` entries are
+   empty placeholders), so they must be created at the provider sources. **After saving the variables,
+   redeploy** — Vercel does not apply env changes to already-built deployments. Keep sandbox and
+   production credentials separate. Confirm the webhook signing credential against Cashfree's current
+   documentation.
 2. **Sandbox checkout E2E**: run a real sandbox purchase through the UI; verify the provider webhook
    event and the resulting server-side ledger grant independently of the return page. Expected result:
    PAID order, exactly one matching premium_purchases row, premium enabled, +5 boosts; a replayed
@@ -143,9 +160,10 @@ authentication or payment is established.
    has delegated this to a separate image-capable review; findings must be recorded by filename in
    `_audit/visual-qa/appearance-review-status.md` (all five captures currently UNREVIEWED — every
    in-session image read, including the judge reviewer, was omitted for lack of image input).
-4. **Production promotion**: promote the tested source only after gates 1–3, then repeat smoke checks
-   (cron guard, webhook signature rejection, homepage/dashboard render, and a real minting round-trip
-   once Upstash is configured). A redeploy of the old Git revision would not include these
-   uncommitted fixes.
+4. **Production verification (promotion already executed by operator instruction)**: the live domain
+   now serves commit `358e066`. Repeat the smoke checks after the env vars land (cron guard, webhook
+   signature rejection, homepage/dashboard render, and a real minting round-trip plus the sandbox
+   checkout E2E from gate 2). Until then, minting on the live domain errors by design (fail-closed
+   limiter). The old production build `f3a0e82` remains one click away as a rollback if needed.
 
 No commits or pushes were made. Provider payment testing and production readiness remain incomplete.

@@ -204,7 +204,7 @@ export default function SignupPage() {
               autoComplete="name"
               value={fullName}
               onChange={(event) => setFullName(event.target.value)}
-              placeholder="Vikash Meena"
+              placeholder="Your name"
             />
           )}
         </Field>
