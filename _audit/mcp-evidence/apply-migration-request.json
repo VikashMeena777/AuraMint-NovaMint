@@ -1,0 +1,29 @@
+{
+ "action": "apply atomic_payments migration (one-shot, operator-authorized via AskUserQuestion 'Apply now')",
+ "migration_file": "supabase/migrations/202609170001_atomic_payments.sql",
+ "requested_at": "2026-09-17T17:52:25.995Z",
+ "preflight": {
+  "http_status": 200,
+  "duration_ms": 547,
+  "id": "drgparslvudatouqtjmx",
+  "name": "AuraMint",
+  "status": "ACTIVE_HEALTHY",
+  "paid_row_guard": {
+   "http_status": 201,
+   "duration_ms": 711,
+   "response": {
+    "paid": 0
+   }
+  }
+ },
+ "apply": {
+  "issued": true,
+  "method": "POST",
+  "path": "/v1/projects/drgparslvudatouqtjmx/database/query",
+  "bytes_sent": 22876,
+  "http_status": 201,
+  "duration_ms": 1136,
+  "network_error": null,
+  "response_excerpt": "[]"
+ }
+}

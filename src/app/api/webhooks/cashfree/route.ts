@@ -1,108 +1,90 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
-import crypto from "crypto";
-
-function getSupabaseAdmin() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-}
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import {
+  logPaymentEvent,
+  markOrderFailed,
+} from "@/lib/actions/premium";
+import {
+  handleCashfreeWebhookEvent,
+  type WebhookDeps,
+  type WebhookOrderRow,
+} from "@/lib/actions/payment-webhook";
+import { fulfillPremiumOrder } from "@/lib/actions/payment-fulfillment";
 
 /**
  * Cashfree webhook handler.
- * Verifies signature, processes PAYMENT_SUCCESS events.
- * ALWAYS returns 200 to prevent retry storms.
+ *
+ * All security decisions live in `handleCashfreeWebhookEvent` (unit tested); this
+ * handler only wires the service-role client and the response.
+ *
+ * Status codes: 401 invalid signature, 400 malformed payload, 503 misconfigured,
+ * 500 transient failure (provider retries), 200 handled/ignored.
  */
-export async function POST(req: NextRequest) {
-  const webhookSecret = process.env.CASHFREE_WEBHOOK_SECRET;
 
-  if (!webhookSecret) {
-    console.error("[Cashfree Webhook] CRITICAL: CASHFREE_WEBHOOK_SECRET not configured");
-    return NextResponse.json({ message: "Server misconfigured" }, { status: 200 });
+export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+
+/** Reject absurd payloads before parsing them. */
+const MAX_BODY_BYTES = 256 * 1024;
+
+function createWebhookDeps(supabase: SupabaseClient): WebhookDeps {
+  return {
+    async getOrder(orderId) {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("id, user_id, status, amount, currency")
+        .eq("cashfree_order_id", orderId)
+        .maybeSingle();
+
+      if (error) return { order: null, error: error.message };
+      return { order: (data as WebhookOrderRow | null) ?? null };
+    },
+
+    fulfillOrder(orderId, userId) {
+      return fulfillPremiumOrder(supabase, orderId, userId);
+    },
+
+    markOrderFailed(orderId) {
+      return markOrderFailed(supabase, orderId);
+    },
+
+    logEvent(userId, action, metadata) {
+      return logPaymentEvent(supabase, userId, action, metadata);
+    },
+  };
+}
+
+export async function POST(req: NextRequest) {
+  const declaredLength = Number(req.headers.get("content-length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_BODY_BYTES) {
+    return NextResponse.json({ message: "Payload too large" }, { status: 413 });
+  }
+
+  const supabase = getSupabaseAdmin();
+  if (!supabase) {
+    console.error("[Cashfree Webhook] CRITICAL: Supabase service-role env is not configured");
+    return NextResponse.json({ message: "Server misconfigured" }, { status: 503 });
   }
 
   try {
     const rawBody = await req.text();
-    const timestamp = req.headers.get("x-webhook-timestamp") || "";
-    const signature = req.headers.get("x-webhook-signature") || "";
-
-    // Verify signature using timing-safe comparison
-    const signaturePayload = timestamp + rawBody;
-    const expectedSignature = crypto
-      .createHmac("sha256", webhookSecret)
-      .update(signaturePayload)
-      .digest("base64");
-
-    const sigBuf = Buffer.from(signature);
-    const expectedBuf = Buffer.from(expectedSignature);
-
-    if (sigBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(sigBuf, expectedBuf)) {
-      console.error("[Cashfree Webhook] Invalid signature");
-      return NextResponse.json({ message: "Invalid signature" }, { status: 200 });
+    if (rawBody.length > MAX_BODY_BYTES) {
+      return NextResponse.json({ message: "Payload too large" }, { status: 413 });
     }
 
-    const event = JSON.parse(rawBody);
-    const eventType = event?.type;
-    const orderData = event?.data?.order;
+    const outcome = await handleCashfreeWebhookEvent({
+      rawBody,
+      timestamp: req.headers.get("x-webhook-timestamp"),
+      signature: req.headers.get("x-webhook-signature"),
+      secret: process.env.CASHFREE_WEBHOOK_SECRET,
+      deps: createWebhookDeps(supabase),
+    });
 
-    if (!orderData?.order_id) {
-      return NextResponse.json({ message: "No order_id" }, { status: 200 });
-    }
-
-    const orderId = orderData.order_id;
-
-    if (eventType === "PAYMENT_SUCCESS_WEBHOOK" || orderData.order_status === "PAID") {
-      // Get the order to find user_id
-      const { data: order } = await getSupabaseAdmin()
-        .from("orders")
-        .select("user_id, status")
-        .eq("id", orderId)
-        .single();
-
-      if (!order) {
-        console.error("[Cashfree Webhook] Order not found:", orderId);
-        return NextResponse.json({ message: "Order not found" }, { status: 200 });
-      }
-
-      // Idempotency check
-      if ((order as any).status === "PAID") {
-        return NextResponse.json({ message: "Already processed" }, { status: 200 });
-      }
-
-      // Upgrade to premium
-      await getSupabaseAdmin()
-        .from("profiles")
-        .update({ is_premium: true })
-        .eq("id", (order as any).user_id);
-
-      // Update order status
-      await getSupabaseAdmin()
-        .from("orders")
-        .update({ status: "PAID" })
-        .eq("id", orderId);
-
-      // Log activity
-      await getSupabaseAdmin().from("activity_log").insert({
-        user_id: (order as any).user_id,
-        action: "payment.webhook.success",
-        metadata: { order_id: orderId },
-      });
-
-      console.log("[Cashfree Webhook] Payment success:", orderId);
-    } else if (eventType === "PAYMENT_FAILED_WEBHOOK" || orderData.order_status === "FAILED") {
-      await getSupabaseAdmin()
-        .from("orders")
-        .update({ status: "FAILED" })
-        .eq("id", orderId);
-
-      console.log("[Cashfree Webhook] Payment failed:", orderId);
-    }
-
-    return NextResponse.json({ message: "OK" }, { status: 200 });
+    return NextResponse.json(outcome.body, { status: outcome.status });
   } catch (err) {
-    console.error("[Cashfree Webhook] Error:", err);
-    // ALWAYS return 200 to prevent retry storms
-    return NextResponse.json({ message: "Error processed" }, { status: 200 });
+    console.error("[Cashfree Webhook] Unexpected error:", err);
+    // 5xx so the provider retries a delivery we could not process at all.
+    return NextResponse.json({ message: "Error processed" }, { status: 500 });
   }
 }

@@ -1,0 +1,83 @@
+TAP version 13
+# Subtest: SQL migration and payment lifecycle execute in an isolated database
+    # Subtest: both payment RPCs exist with pinned search_path
+    ok 1 - both payment RPCs exist with pinned search_path
+      ---
+      duration_ms: 13.1927
+      type: 'test'
+      ...
+    # Subtest: service fulfillment changes order, ledger and profile together
+    ok 2 - service fulfillment changes order, ledger and profile together
+      ---
+      duration_ms: 31.534
+      type: 'test'
+      ...
+    # Subtest: duplicate delivery never refills spent boosts
+    ok 3 - duplicate delivery never refills spent boosts
+      ---
+      duration_ms: 8.8307
+      type: 'test'
+      ...
+    # Subtest: missing profile rolls back and leaves order pending
+    ok 4 - missing profile rolls back and leaves order pending
+      ---
+      duration_ms: 10.1184
+      type: 'test'
+      ...
+    # Subtest: a write failure after ledger insert rolls back ledger and order
+    ok 5 - a write failure after ledger insert rolls back ledger and order
+      ---
+      duration_ms: 12.313
+      type: 'test'
+      ...
+    # Subtest: foreign owner, wrong amount, plan and refunded orders are refused
+    ok 6 - foreign owner, wrong amount, plan and refunded orders are refused
+      ---
+      duration_ms: 12.1022
+      type: 'test'
+      ...
+    # Subtest: verified success after failed attempt remains fulfillable
+    ok 7 - verified success after failed attempt remains fulfillable
+      ---
+      duration_ms: 5.2018
+      type: 'test'
+      ...
+    # Subtest: client roles cannot call RPCs or write orders/ledger
+    ok 8 - client roles cannot call RPCs or write orders/ledger
+      ---
+      duration_ms: 16.9803
+      type: 'test'
+      ...
+    # Subtest: profile guard blocks client entitlement increases but allows boost debit
+    ok 9 - profile guard blocks client entitlement increases but allows boost debit
+      ---
+      duration_ms: 31.9532
+      type: 'test'
+      ...
+    # Subtest: reconciliation repairs paid crash window and never refills ledgered boosts
+    ok 10 - reconciliation repairs paid crash window and never refills ledgered boosts
+      ---
+      duration_ms: 34.1825
+      type: 'test'
+      ...
+    1..10
+ok 1 - SQL migration and payment lifecycle execute in an isolated database
+  ---
+  duration_ms: 3909.0712
+  type: 'test'
+  ...
+# Subtest: migration refuses historical PAID rows before creating payment objects
+ok 2 - migration refuses historical PAID rows before creating payment objects
+  ---
+  duration_ms: 2443.5355
+  type: 'test'
+  ...
+1..2
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6612.1497

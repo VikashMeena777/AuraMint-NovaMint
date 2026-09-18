@@ -1,0 +1,56 @@
+✖ normaliseStatus(ACTIVE) is pending, the token the verify route preserves (1.2681ms)
+✖ active / Active normalise to pending (mapper lowercases before comparing) (0.1967ms)
+✔ supported statuses map exactly as before (controls) (0.1851ms)
+✔ unknown and empty inputs still fall through to idle (0.1141ms)
+✔ out-of-scope provider tokens (EXPIRED, TERMINATED) deliberately remain idle (0.0848ms)
+✔ the tested function is the real component declaration, not a stub (0.171ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 4
+ℹ fail 2
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 15.4576
+
+✖ failing tests:
+
+test at _audit\premium-status-tests.mjs:65:1
+✖ normaliseStatus(ACTIVE) is pending, the token the verify route preserves (1.2681ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'idle' !== 'pending'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Vikash%20Meena/Desktop/Automations/34-AuraTracker/auramint/_audit/premium-status-tests.mjs:66:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.start (node:internal/test_runner/test:1015:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:358:17) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'idle',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at _audit\premium-status-tests.mjs:69:1
+✖ active / Active normalise to pending (mapper lowercases before comparing) (0.1967ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  
+  'idle' !== 'pending'
+  
+      at TestContext.<anonymous> (file:///C:/Users/Vikash%20Meena/Desktop/Automations/34-AuraTracker/auramint/_audit/premium-status-tests.mjs:70:10)
+      at Test.runInAsyncScope (node:async_hooks:228:14)
+      at Test.run (node:internal/test_runner/test:1118:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:787:18)
+      at Test.postRun (node:internal/test_runner/test:1247:19)
+      at Test.run (node:internal/test_runner/test:1175:12)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'idle',
+    expected: 'pending',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

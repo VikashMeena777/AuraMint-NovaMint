@@ -1,0 +1,341 @@
+[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured { scope: 'ai.submit_event' }
+[rate-limit] UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN are not configured { scope: 'ai.submit_event' }
+[rate-limit] Upstash returned a non-OK status { scope: 'payment.create_order', status: 502 }
+[rate-limit] Upstash request failed { scope: 'payment.create_order', kind: 'Error' }
+[rate-limit] Upstash response was not a JSON object { scope: 'payment.create_order' }
+[rate-limit] Upstash returned an error result { scope: 'payment.create_order' }
+[rate-limit] Upstash EVAL returned an unexpected shape { scope: 'payment.create_order' }
+[rate-limit] Upstash EVAL returned a non-numeric count { scope: 'payment.create_order' }
+[rate-limit] Configured Upstash URL is not acceptable { scope: 'ai.submit_event' }
+[rate-limit] Invalid limiter scope/subject
+[rate-limit] Invalid limiter scope/subject
+[rate-limit] Invalid limiter budget { scope: 'ok.scope' }
+[rate-limit] Invalid limiter budget { scope: 'ok.scope' }
+[rate-limit] Invalid limiter budget { scope: 'ok.scope' }
+✔ rate-limit: key is namespaced, deterministic and does not expose the subject (3.4004ms)
+✔ rate-limit: readUpstashConfig is conservative about missing/short/bad config (1.9162ms)
+✔ rate-limit: sends one atomic EVAL with the namespaced key and window (3.1874ms)
+✔ rate-limit: allows at the limit and denies above it (0.8279ms)
+✔ rate-limit: production fails closed on missing config, other envs degrade (1.8314ms)
+✔ rate-limit: production fails closed on provider failures (2.3955ms)
+✔ rate-limit: production rejects a non-HTTPS Upstash URL (1.0851ms)
+✔ rate-limit: invalid budgets/scopes fail closed and never call the provider (1.0804ms)
+✔ rate-limit: a missing TTL falls back to the configured window (0.7381ms)
+✔ rate-limit: user messages never leak internals or the token (0.461ms)
+✔ feed-aggregates: counts only allowlisted reaction types (0.4709ms)
+✔ feed-aggregates: indexes the viewer's own vote and reaction only when valid (0.4742ms)
+✔ payment-repair: decision table is fail-closed on unreadable state (0.2978ms)
+✔ payment-repair: already-premium orders are left untouched (no boost reset) (0.6729ms)
+✔ payment-repair: grants exactly once when premium is missing (0.584ms)
+✔ payment-repair: never reports success when state is unreadable or grant fails (0.5462ms)
+(node:10460) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Vikash%20Meena/Desktop/Automations/34-AuraTracker/auramint/src/lib/rate-limit.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Vikash Meena\Desktop\Automations\34-AuraTracker\auramint\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Cashfree Webhook] Payment success: auramint_1234abcd_1712345678901
+[Cashfree Webhook] Repaired missing entitlements for paid order: auramint_1234abcd_1712345678901
+[Cashfree Webhook] Paid order entitlement could not be verified: db down
+[Cashfree Webhook] Invalid signature — delivery rejected
+[Cashfree Webhook] Invalid signature — delivery rejected
+[Cashfree Webhook] Missing x-webhook-timestamp header
+[Cashfree Webhook] CRITICAL: CASHFREE_WEBHOOK_SECRET not configured
+[Cashfree Webhook] Body is not valid JSON
+[Cashfree Webhook] Payload failed validation
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'amount_mismatch',
+  providerAmount: 1,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'currency_mismatch',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'USD',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] Order not found: auramint_zzzz_1
+[Cashfree Webhook] Rejected unexpected order id format
+[Cashfree Webhook] Order not found: auramint_zzzz_1
+[Cashfree Webhook] CRITICAL: order has no owner: auramint_1234abcd_1712345678901
+[Cashfree Webhook] Payment failed: auramint_1234abcd_1712345678901
+[Cashfree Webhook] Failed to grant premium: rls
+[Cashfree Webhook] Failed to claim order: db down
+✔ safeRedirectPath: rejects open-redirect payloads (3.3379ms)
+✔ safeRedirectPath: every result is a safe same-origin path (0.4966ms)
+✔ safeRedirectPath: keeps legitimate same-origin paths (0.5488ms)
+✔ resolveTrustedOrigin: ignores attacker-controlled host data (0.6529ms)
+✔ cron authorization: fails closed when CRON_SECRET is missing or short (0.9822ms)
+✔ cron authorization: rejects the `Bearer undefined` bypass (0.2582ms)
+✔ cron authorization: requires an exact, constant-time match (0.5988ms)
+✔ timingSafeEquals: never matches empty or absent values (0.3448ms)
+✔ escapeHtml neutralises markup and attribute breakouts (0.4506ms)
+✔ sanitizePlainText strips tags/control chars and bounds length (0.7885ms)
+✔ truncateCodePoints preserves emoji and rejects non-strings (0.2749ms)
+✔ clampAuraPoints rejects NaN and clamps the model range (0.2913ms)
+✔ amountsMatch compares provider major units against stored minor units (0.3124ms)
+✔ isValidOrderId only accepts our own order id format (0.2286ms)
+✔ isSafeId / isVoteValue / isReactionType / safeStatusToken (0.3045ms)
+✔ isValidEmailAddress blocks header injection and multi-recipient input (0.2305ms)
+✔ boundedInt clamps pagination (0.1196ms)
+✔ webhook: valid payment grants entitlements exactly once (10.8884ms)
+✔ webhook: duplicate delivery is idempotent (no second grant) (0.7544ms)
+✔ webhook: repairs a paid order whose entitlement was lost to a crash (0.6086ms)
+✔ webhook: returns 5xx when a paid order's entitlement cannot be verified (0.5959ms)
+✔ webhook: forged signature is rejected before any state change (0.5037ms)
+✔ webhook: signature forged over a different timestamp is rejected (0.4219ms)
+✔ webhook: missing timestamp or missing secret fails closed (0.4174ms)
+✔ webhook: malformed JSON and unexpected payloads are rejected safely (1.2928ms)
+✔ webhook: refuses to grant premium when the paid amount differs (1.0703ms)
+✔ webhook: refuses to grant premium when the currency differs (1.207ms)
+✔ webhook: unknown order ids change nothing (0.8521ms)
+✔ webhook: order id that is not ours is ignored (path traversal guard) (0.6248ms)
+✔ webhook: an order without an owner is never granted (1.1979ms)
+✔ webhook: FAILED payments only mark the order, never touch entitlements (0.4399ms)
+✔ webhook: entitlement failure reverts the claim and asks for a retry (0.4614ms)
+✔ webhook: claim failure surfaces as a retryable error (0.4982ms)
+✔ verifyCashfreeSignature: rejects empty inputs and wrong lengths (0.2176ms)
+✔ coerceAuraResult clamps, sanitises and falls back (1.7813ms)
+✔ buildAuraUserPrompt fences untrusted text and strips delimiter forgery (1.9277ms)
+✔ fallback scorer uses word boundaries (no substring free points) (2.3246ms)
+✔ fallback scorer always returns a complete, bounded result (0.2064ms)
+✔ welcome email neutralises a markup username (strip + escape) (0.8899ms)
+✔ daily report email neutralises AI output and user descriptions (27.9298ms)
+✔ streak + weekly digest emails neutralise every interpolated value (3.7855ms)
+✔ email preheader is escaped by the layout (1.9819ms)
+✔ route policy covers the whole authenticated app and is segment-exact (0.3637ms)
+(node:8256) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Vikash%20Meena/Desktop/Automations/34-AuraTracker/auramint/src/lib/actions/safety.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Vikash Meena\Desktop\Automations\34-AuraTracker\auramint\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: null,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: null,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: 0,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: -9900,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: NaN,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: 'abc',
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: '',
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: {},
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: null
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: null
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: ''
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: '  '
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: 'US'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: 123
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'provider_amount_invalid',
+  providerAmount: null,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'provider_amount_invalid',
+  providerAmount: 'abc',
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'provider_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: null,
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'provider_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: '',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'provider_currency_invalid',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: '  ',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'amount_mismatch',
+  providerAmount: 1,
+  storedAmount: 9900,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'currency_mismatch',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'USD',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] Payment success: auramint_1234abcd_1712345678901
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'stored_amount_invalid',
+  providerAmount: 99,
+  storedAmount: null,
+  providerCurrency: 'INR',
+  storedCurrency: 'INR'
+}
+[Cashfree Webhook] Payment success: auramint_1234abcd_1712345678901
+[Cashfree Webhook] CRITICAL: refusing to grant premium {
+  orderId: 'auramint_1234abcd_1712345678901',
+  reason: 'plan_currency_mismatch',
+  providerAmount: 99,
+  storedAmount: 9900,
+  providerCurrency: 'USD',
+  storedCurrency: 'USD'
+}
+✔ verification: a valid stored order with a matching provider report passes (5.0316ms)
+✔ verification: every missing/malformed stored amount fails closed (0.8668ms)
+✔ verification: every missing/malformed stored currency fails closed (0.8276ms)
+✔ verification: every missing/malformed provider amount fails closed (0.4125ms)
+✔ verification: every missing/malformed provider currency fails closed (0.2675ms)
+✔ verification: amount and currency mismatches are distinguished (0.2382ms)
+✔ verification: accepted forms are exact and do not soften the comparison (0.212ms)
+✔ verification: normalisers reject junk without throwing (0.4986ms)
+✔ verification: every failure maps to an existing or explicitly new audit action (1.2768ms)
+✔ webhook: a stored order without a usable amount never claims or grants (11.3395ms)
+✔ webhook: a stored order without a usable currency never claims or grants (2.6205ms)
+✔ webhook: a provider success event without an amount never claims or grants (1.1163ms)
+✔ webhook: a provider success event without a usable currency never claims or grants (1.3552ms)
+✔ webhook: amounts that are present but different keep the mismatch behaviour (0.7897ms)
+✔ webhook: a fully valid delivery still grants exactly once (no over-hardening) (1.0596ms)
+✔ webhook: a refused delivery leaves the order claimable for a later valid one (0.6515ms)
+✔ premium: a grant that matches zero profile rows fails instead of reporting success (0.7211ms)
+✔ premium: a grant that matches exactly one profile row succeeds (0.2343ms)
+✔ premium: a database error still fails the grant with its message (0.1731ms)
+✔ premium: an empty user id fails before any database call (0.2196ms)
+✔ premium: claimOrderAsPaid only reports a claim when a row was actually updated (0.4319ms)
+✔ wiring: verifyPayment uses the shared fail-closed decision, not permissive skips (0.6508ms)
+✔ verification: a matched pair of non-plan currencies is still refused (0.2008ms)
+✔ verification: the plan pin maps and reports like other currency refusals (0.0968ms)
+✔ wiring: order creation and the provider call both pin PLAN_CURRENCY (0.5385ms)
+✔ premium: markOrderFailed reports whether a row was actually updated (0.6248ms)
+✔ webhook: matching non-plan currency never claims or grants (0.5981ms)
+✔ webhook: zero-row failure updates acknowledge only verified terminal states (1.5078ms)
+✔ webhook: failed transition readback errors ask for retry (0.5174ms)
+✔ wiring: analytics win semantics treat zero-point strikes as neutral (1.0897ms)
+(node:8460) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Vikash%20Meena/Desktop/Automations/34-AuraTracker/auramint/src/lib/actions/payment-verification.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\Vikash Meena\Desktop\Automations\34-AuraTracker\auramint\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+ℹ tests 89
+ℹ suites 0
+ℹ pass 89
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1555.2755

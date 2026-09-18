@@ -1,0 +1,19 @@
+{
+  "at": "2026-09-17T18:08:58.645Z",
+  "checks": [
+    "Confirmed throwaway user signed in; JWT accepted by live Auth API",
+    "Real signed-in JWT reads trigger-created profile over PostgREST",
+    "Signed-in user reads both owned orders over PostgREST",
+    "Service-role fulfillment is visible through the real signed-in session: premium and +5 boosts",
+    "Duplicate fulfillment does not refill boosts",
+    "Live reconciliation repairs synthetic PAID crash window with exact matching ledger rows",
+    "Second live reconciliation is a no-op"
+  ],
+  "cleanup": [
+    "activity_log: zero probe rows",
+    "premium_purchases: zero probe rows",
+    "orders: zero probe rows",
+    "Auth user deleted; profile cascade verified"
+  ],
+  "error": null
+}

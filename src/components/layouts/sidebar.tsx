@@ -1,15 +1,34 @@
 "use client";
 
+import * as React from "react";
+import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Crown, LayoutDashboard, Trophy, User, Gem, Flame, Moon, Sun, LogOut, Sparkles, Medal, BarChart3 } from "lucide-react";
-import { useTheme } from "next-themes";
-import { cn, formatAuraPoints } from "@/lib/utils";
-import { createClient } from "@/lib/supabase/client";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
+import { usePathname, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { PremiumIcon } from "@/components/aura/premium-icon";
+import {
+  BarChart3,
+  Flame,
+  Gem,
+  Gift,
+  LayoutDashboard,
+  LogOut,
+  Medal,
+  Search,
+  Stamp,
+  Trophy,
+  User,
+  type LucideIcon,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { cn } from "@/lib/utils";
+import { createClient } from "@/lib/supabase/client";
+import { AnimatedIcon } from "@/components/ui/animated-icon";
+import { AuraNumber } from "@/components/ui/aura-number";
+import { Button } from "@/components/ui/button";
+import { TierMark } from "@/components/ui/tier-mark";
+import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { OPEN_LOG_EVENT, OPEN_PALETTE_EVENT } from "@/components/layouts/events";
 
 type ProfileData = {
   username: string;
@@ -21,162 +40,193 @@ type ProfileData = {
   is_premium: boolean;
 } | null;
 
-const navItems = [
-  { href: "/dashboard", icon: LayoutDashboard, label: "Feed" },
+/**
+ * Sidebar — the ledger spine.
+ *
+ * A solid ink plate with one brass hairline: no blur, no lift-on-hover, no
+ * decorative loops. Nav rows are ledger lines with a 3px active rail; the aura
+ * total is a struck figure with its tier hallmark, and every destination in the
+ * product (including the previously orphaned analytics, badges and wrapped) is
+ * reachable from a visible affordance.
+ */
+const navItems: { href: string; icon: LucideIcon; label: string }[] = [
+  { href: "/dashboard", icon: LayoutDashboard, label: "The ledger" },
   { href: "/leaderboard", icon: Trophy, label: "Leaderboard" },
-  { href: "/badges", icon: Medal, label: "Badges" },
   { href: "/analytics", icon: BarChart3, label: "Analytics" },
+  { href: "/badges", icon: Medal, label: "Badges" },
+  { href: "/wrapped", icon: Gift, label: "Wrapped" },
   { href: "/profile", icon: User, label: "Profile" },
-  { href: "/premium", icon: Gem, label: "Premium" },
+  { href: "/premium", icon: Gem, label: "AuraMint+" },
 ];
-
-const tierMeta: Record<string, { emoji: string; gradient: string; textClass: string }> = {
-  "Negative Aura": { emoji: "💀", gradient: "from-red-950/40 via-red-900/20 to-red-950/40", textClass: "text-red-400" },
-  NPC: { emoji: "🗿", gradient: "from-slate-900/40 via-slate-800/20 to-slate-900/40", textClass: "text-slate-400" },
-  Civilian: { emoji: "😐", gradient: "from-violet-950/40 via-violet-900/20 to-violet-950/40", textClass: "text-violet-400" },
-  "Rising Star": { emoji: "⭐", gradient: "from-blue-950/40 via-blue-900/20 to-blue-950/40", textClass: "text-blue-400" },
-  "Main Character": { emoji: "🔥", gradient: "from-amber-950/40 via-amber-900/20 to-amber-950/40", textClass: "text-amber-400" },
-  Legendary: { emoji: "👑", gradient: "from-yellow-950/40 via-yellow-900/20 to-yellow-950/40", textClass: "text-yellow-400" },
-  Mythical: { emoji: "⚡", gradient: "from-purple-950/40 via-purple-900/20 to-purple-950/40", textClass: "text-purple-400" },
-  "GOD MODE": { emoji: "🌟", gradient: "from-amber-900/50 via-yellow-900/30 to-amber-900/50", textClass: "text-yellow-400 font-extrabold" },
-};
 
 export function Sidebar({ profile }: { profile: ProfileData }) {
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
   const router = useRouter();
-  const supabase = createClient();
+  const [hovered, setHovered] = React.useState<string | null>(null);
+  const [signingOut, setSigningOut] = React.useState(false);
 
-  async function handleLogout() {
+  async function handleSignOut() {
+    setSigningOut(true);
+    const supabase = createClient();
     await supabase.auth.signOut();
-    toast.success("See you soon! ✌️");
+    setSigningOut(false);
+    toast.success("Signed out. Your ledger is safe.");
     router.push("/");
     router.refresh();
   }
 
-  const tier = tierMeta[profile?.current_tier || "NPC"] || tierMeta.NPC;
+  const displayName = profile?.display_name || profile?.username || "AuraMinter";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[290px] flex-col lg:flex py-6 px-4 glass-card border-r border-border/30 rounded-none">
-      <div className="grain-overlay" />
-
-      {/* ─── Header Logo ─── */}
-      <Link href="/" className="relative z-10 flex items-center gap-3 px-3 mb-8 cursor-pointer hover:opacity-90 transition select-none">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 border border-primary/15">
-          <Crown className="h-5 w-5 text-primary" />
-        </div>
-        <div>
-          <h1 className="heading text-xl tracking-tighter grad-gold leading-none">AuraMint</h1>
-          <p className="text-[9px] uppercase tracking-[0.2em] font-extrabold text-muted-foreground/50 mt-1">by NovaMint</p>
-        </div>
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[280px] flex-col overflow-y-auto border-r border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-5 lg:flex">
+      {/* ── Wordmark ────────────────────────────────────────────────── */}
+      <Link
+        href="/dashboard"
+        className="flex items-center gap-2.5 rounded-[var(--radius)] px-2 py-1 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))]"
+      >
+        <Image
+          src="/auramint-coin.svg"
+          alt=""
+          width={28}
+          height={28}
+          className="size-7"
+          aria-hidden="true"
+        />
+        <span className="flex flex-col">
+          <span className="heading text-[20px] leading-none text-[color-mix(in_srgb,var(--brass-500)_82%,hsl(var(--foreground)))]">
+            AuraMint
+          </span>
+          <span className="label-micro mt-1 text-[10px]">Assay office</span>
+        </span>
       </Link>
 
-      {/* ─── Aura Score + Tier Widget ─── */}
-      {profile && (
-        <div className="relative z-10 mb-6">
-          <div className={cn(
-            "relative overflow-hidden rounded-2xl border border-border/30 bg-gradient-to-br p-5",
-            tier.gradient
-          )}>
-            <div className="grain-overlay" />
-            <div className="absolute -right-8 -top-8 h-20 w-20 rounded-full bg-primary/10 blur-xl" />
-            
-            <div className="relative z-10 flex items-center gap-2">
-              <PremiumIcon emoji={tier.emoji} className="h-5 w-5" />
-              <span className={cn("text-[10px] font-bold uppercase tracking-widest", tier.textClass)}>
-                {profile.current_tier}
-              </span>
-            </div>
-            
-            {/* Big aura score with golden glow */}
-            <p className="relative z-10 mono mt-3 text-3xl font-black tracking-tighter leading-none" style={{ textShadow: "0 0 20px rgba(232,163,23,0.3)" }}>
-              {formatAuraPoints(profile.total_aura)}
-            </p>
-            <p className="relative z-10 text-[9px] font-bold uppercase tracking-widest text-muted-foreground/60 mt-1">Total Aura</p>
-            
-            {/* Streak + Pro badge */}
-            <div className="relative z-10 mt-4 flex items-center gap-4 text-xs font-semibold text-muted-foreground/80">
-              <span className="flex items-center gap-1.5">
-                <Flame className="h-3.5 w-3.5 text-orange-400" />
-                {profile.streak_days}d streak
-              </span>
-              {profile.is_premium && (
-                <span className="rounded-full bg-primary/15 border border-primary/25 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
-                  Pro
-                </span>
-              )}
+      {/* ── Struck balance widget ───────────────────────────────────── */}
+      {profile ? (
+        <section
+          aria-label="Your balance"
+          className="mt-5 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-4"
+        >
+          <div className="flex items-center gap-2.5">
+            <TierMark tier={profile.current_tier} size="sm" />
+            <div className="min-w-0">
+              <p className="label-micro">{profile.current_tier}</p>
+              <p className="truncate text-[13px] font-semibold">{displayName}</p>
             </div>
           </div>
-        </div>
-      )}
 
-      {/* ─── Navigation ─── */}
-      <nav className="relative z-10 flex-1 space-y-1.5 px-1">
+          <p className="label-micro mt-4">Total aura</p>
+          <AuraNumber value={profile.total_aura} size="lg" className="mt-1" />
+
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-[hsl(var(--muted-foreground))]">
+              <AnimatedIcon icon={Flame} idiom="press" className="size-3.5" />
+              {profile.streak_days}-day streak
+            </span>
+            {profile.is_premium ? (
+              <span className="label-micro label-brass rounded-[var(--radius-sm)] border border-[var(--brass-600)] px-1.5 py-0.5 text-[10px]">
+                AuraMint+
+              </span>
+            ) : null}
+          </div>
+        </section>
+      ) : null}
+
+      {/* ── Primary action ──────────────────────────────────────────── */}
+      <div className="mt-4 flex flex-col gap-2">
+        <Button
+          variant="strike"
+          size="md"
+          className="w-full"
+          onClick={() => window.dispatchEvent(new CustomEvent(OPEN_LOG_EVENT))}
+        >
+          <AnimatedIcon icon={Stamp} idiom="press" className="size-4" />
+          Log a moment
+        </Button>
+        <Button
+          variant="plate"
+          size="md"
+          className="w-full justify-start text-[hsl(var(--muted-foreground))]"
+          onClick={() => window.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT))}
+        >
+          <AnimatedIcon icon={Search} idiom="press" className="size-4" />
+          Search the ledger
+          <span className="mono ml-auto hidden text-[11px] tracking-widest text-[hsl(var(--muted-foreground))] sm:inline">
+            ⌘K
+          </span>
+        </Button>
+      </div>
+
+      <hr className="rule my-4" />
+
+      {/* ── Nav ────────────────────────────────────────────────────── */}
+      <nav aria-label="Main" className="flex flex-1 flex-col gap-0.5">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            pathname === item.href || pathname.startsWith(`${item.href}/`);
           return (
             <Link
               key={item.href}
               href={item.href}
+              aria-current={isActive ? "page" : undefined}
+              onMouseEnter={() => setHovered(item.href)}
+              onMouseLeave={() => setHovered(null)}
+              onFocus={() => setHovered(item.href)}
+              onBlur={() => setHovered(null)}
               className={cn(
-                "group relative flex items-center gap-3.5 rounded-xl px-4 py-3.5 text-xs font-bold uppercase tracking-wider transition-all",
+                "relative flex min-h-11 items-center gap-3 rounded-[var(--radius)] px-3 text-[14px] transition-colors",
                 isActive
-                  ? "bg-primary/10 border border-primary/15 text-primary"
-                  : "text-muted-foreground hover:bg-muted/30 dark:hover:bg-white/5 hover:text-foreground border border-transparent"
+                  ? "bg-[hsl(var(--secondary))] font-semibold text-[hsl(var(--foreground))]"
+                  : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--secondary))] hover:text-[hsl(var(--foreground))]",
+                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[hsl(var(--ring))]"
               )}
             >
-              <item.icon className="h-4.5 w-4.5 transition group-hover:scale-105" />
+              <AnimatedIcon
+                icon={item.icon}
+                idiom="nudge"
+                active={isActive}
+                hovered={hovered === item.href}
+                className="size-4"
+              />
               <span>{item.label}</span>
-              {item.href === "/premium" && !profile?.is_premium && (
-                <span className="ml-auto rounded-full bg-primary/15 border border-primary/25 px-2 py-0.5 text-[8px] font-bold uppercase tracking-wider text-primary">
-                  Pro
+              {item.href === "/premium" && !profile?.is_premium ? (
+                <span className="label-micro label-brass ml-auto text-[10px]">
+                  Plus
                 </span>
-              )}
-              {isActive && (
-                <motion.div
-                  layoutId="active-indicator"
-                  className="absolute left-0 w-1 h-5 rounded-r-full bg-primary shadow-[0_0_8px_rgba(232,163,23,0.5)]"
-                  transition={{ type: "spring", stiffness: 380, damping: 30 }}
+              ) : null}
+              {isActive ? (
+                <motion.span
+                  aria-hidden="true"
+                  layoutId="sidebar-active-rail"
+                  className="absolute inset-y-1.5 left-0 w-[3px] rounded-r-full bg-[var(--patina-400)]"
+                  transition={{ type: "spring", stiffness: 420, damping: 34 }}
                 />
-              )}
+              ) : null}
             </Link>
           );
         })}
       </nav>
 
-      {/* ─── Bottom Actions ─── */}
-      <div className="relative z-10 space-y-2 border-t border-border/30 pt-5 px-1">
-        <div className="grid grid-cols-2 gap-1.5">
-          <button
-            onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="flex items-center justify-center gap-2 rounded-xl border border-border/30 bg-muted/15 dark:bg-white/3 py-3 text-xs font-semibold text-muted-foreground transition hover:bg-muted/40 dark:hover:bg-white/8 hover:text-foreground"
-            title={theme === "dark" ? "Switch to Light" : "Switch to Dark"}
-          >
-            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-            <span>Theme</span>
-          </button>
-          <button
-            onClick={handleLogout}
-            className="flex items-center justify-center gap-2 rounded-xl border border-transparent bg-red-500/5 py-3 text-xs font-semibold text-red-400/80 transition hover:bg-red-500/10 hover:text-red-400"
-          >
-            <LogOut className="h-4 w-4" />
-            <span>Logout</span>
-          </button>
-        </div>
-
-        {/* User pill */}
-        {profile && (
-          <div className="flex items-center gap-3 rounded-xl border border-border/30 bg-muted/15 dark:bg-white/3 p-3.5 mt-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary/10 border border-primary/15 text-xs font-black text-primary">
-              {(profile.display_name || profile.username).charAt(0).toUpperCase()}
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-xs font-bold leading-tight">{profile.display_name || profile.username}</p>
-              <p className="truncate mono text-[10px] font-semibold text-muted-foreground/60 mt-0.5">@{profile.username}</p>
-            </div>
-          </div>
-        )}
+      {/* ── Footer actions ─────────────────────────────────────────── */}
+      <hr className="rule my-4" />
+      <div className="flex items-center gap-2">
+        <ThemeToggle withLabel className="flex-1 justify-center" />
+        <Button
+          variant="quiet"
+          size="md"
+          className="flex-1 justify-center text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/0.1)] hover:text-[hsl(var(--destructive))]"
+          onClick={handleSignOut}
+          disabled={signingOut}
+        >
+          <AnimatedIcon icon={LogOut} idiom="slide" className="size-4" />
+          {signingOut ? "Signing out…" : "Sign out"}
+        </Button>
       </div>
+
+      {profile ? (
+        <p className="mono mt-3 truncate px-1 text-[11px] text-[hsl(var(--muted-foreground))]">
+          @{profile.username || "you"}
+        </p>
+      ) : null}
     </aside>
   );
 }

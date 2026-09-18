@@ -1,0 +1,15 @@
+{
+ "action": "preview deployment of local working tree (operator-directed rebuild)",
+ "project": {
+  "id": "prj_hWFMZo7qff7V59Q8pgqeoKY7XJeq",
+  "name": "auramint",
+  "repo": "VikashMeena777/AuraMint-NovaMint"
+ },
+ "target": "preview",
+ "files_uploaded": 271,
+ "deployment_id": "dpl_4nidZffQLqgJvWiW6jW4KFaeKtem",
+ "deployment_url": "https://auramint-bxuikollm-novamint-networks-projects.vercel.app",
+ "final_state": "READY",
+ "created_at": "2026-09-17T20:35:53.704Z",
+ "build_error_excerpt": null
+}

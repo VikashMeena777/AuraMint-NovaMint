@@ -1,28 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
-import { Flame, Calendar, TrendingUp, TrendingDown, Sparkles, User, X } from "lucide-react";
-import { cn, formatAuraPoints } from "@/lib/utils";
-import { AuraEventCard } from "@/components/aura/aura-event-card";
-import { PremiumIcon } from "@/components/aura/premium-icon";
-import { getTierForAura, getTierProgress } from "@/lib/ai/prompts";
-import { updateProfile } from "@/lib/actions/aura-actions";
+import { motion, useReducedMotion } from "framer-motion";
+import { Flame, Calendar, TrendingUp, TrendingDown, Sparkles, User, Share2, Trophy, Rocket } from "lucide-react";
+import { XAxis, YAxis, Tooltip, ResponsiveContainer, Area, AreaChart } from "recharts";
 import { toast } from "sonner";
-import {
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  Area,
-  AreaChart,
-} from "recharts";
+import { cn } from "@/lib/utils";
+import { AuraEventCard } from "@/components/aura/aura-event-card";
+import { AuraNumber } from "@/components/aura/aura-number";
+import { Chip, IconButton, Plate, PrimaryButton, SectionLabel } from "@/components/aura/primitives";
+import { TierMark } from "@/components/aura/tier-mark";
+import { MintDialog } from "@/components/aura/mint-dialog";
+import { SoundToggleRow } from "@/components/aura/sound-toggle";
+import { useViewer } from "@/components/aura/hooks";
+import { getTierForAura, getTierProgress } from "@/lib/ai/prompts";
+import { profileShareUrl } from "@/components/aura/mint";
+import { updateProfile } from "@/lib/actions/aura-actions";
+import type { AuraEvent, AuraHistoryPoint, PublicProfile } from "@/components/aura/types";
+import { playHapticPop } from "@/lib/utils/sound";
 
-const tierEmojis: Record<string, string> = {
-  "Negative Aura": "💀", NPC: "🗿", Civilian: "😐", "Rising Star": "⭐",
-  "Main Character": "🔥", Legendary: "👑", Mythical: "⚡", "GOD MODE": "🌟",
-};
+/** Pure, day-bucketed cumulative series (was: a `let` mutated during render). */
+function buildJourney(history: AuraHistoryPoint[]) {
+  const byDay = new Map<number, { label: string; delta: number }>();
+  for (const point of history) {
+    const date = new Date(point?.created_at ?? "");
+    const ts = date.getTime();
+    if (!Number.isFinite(ts)) continue;
+    const dayKey = new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
+    const existing = byDay.get(dayKey);
+    byDay.set(dayKey, {
+      label: `${date.getDate()}/${date.getMonth() + 1}`,
+      delta: (existing?.delta ?? 0) + (point.aura_points ?? 0),
+    });
+  }
+  const ordered = [...byDay.entries()].sort((a, b) => a[0] - b[0]);
+  let running = 0;
+  return ordered.map(([ts, value]) => {
+    running += value.delta;
+    return { ts, date: value.label, aura: running, delta: value.delta };
+  });
+}
 
 export function ProfileClient({
   profile,
@@ -30,370 +49,388 @@ export function ProfileClient({
   history,
   isOwnProfile,
 }: {
-  profile: any;
-  events: any[];
-  history: any[];
+  profile: PublicProfile;
+  events: AuraEvent[];
+  history: AuraHistoryPoint[];
   isOwnProfile: boolean;
 }) {
-  const tier = getTierForAura(profile.total_aura);
-  const progress = getTierProgress(profile.total_aura);
   const router = useRouter();
-
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [fullNameInput, setFullNameInput] = useState(profile.display_name || "");
-  const [usernameInput, setUsernameInput] = useState(profile.username || "");
+  const viewer = useViewer();
+  const reducedMotion = useReducedMotion();
+  const [editOpen, setEditOpen] = useState(false);
+  const [fullNameInput, setFullNameInput] = useState(profile.display_name ?? "");
+  const [usernameInput, setUsernameInput] = useState(profile.username ?? "");
   const [saving, setSaving] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  const totalAura = profile.total_aura ?? 0;
+  const tier = getTierForAura(totalAura);
+  const progress = getTierProgress(totalAura);
+
+  const journey = useMemo(() => buildJourney(history), [history]);
+
+  // Stats come from the 30-day history (the events array is capped at 20 rows), so the
+  // labels are honest: "Events · 30d" is the real count, not "Total events".
+  const biggestW = history.length > 0 ? Math.max(0, ...history.map((h) => h.aura_points ?? 0)) : 0;
+  const biggestL = history.length > 0 ? Math.min(0, ...history.map((h) => h.aura_points ?? 0)) : 0;
+
+  function openEdit() {
+    setFullNameInput(profile.display_name ?? "");
+    setUsernameInput(profile.username ?? "");
+    setEditOpen(true);
+    playHapticPop();
+  }
 
   async function handleSaveProfile() {
-    if (!fullNameInput.trim()) {
-      toast.error("Please enter your name");
+    if (saving) return;
+    const cleanName = fullNameInput.trim();
+    const cleanUsername = usernameInput.trim().toLowerCase();
+    if (cleanName.length < 2) {
+      toast.error("Enter a display name with at least 2 characters.");
       return;
     }
-    const cleanUsername = usernameInput.trim().toLowerCase();
-    const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
-    if (!usernameRegex.test(cleanUsername)) {
-      toast.error("Username must be 3-20 characters, only letters, numbers, and underscores");
+    if (!/^[a-z0-9_]{3,20}$/.test(cleanUsername)) {
+      toast.error("Usernames are 3–20 characters: lowercase letters, numbers, underscores.");
       return;
     }
 
     setSaving(true);
-    const result = await updateProfile(cleanUsername, fullNameInput.trim());
-    setSaving(false);
-
-    if (result.error) {
-      toast.error(result.error);
-      return;
-    }
-
-    toast.success("Profile updated successfully! ✨");
-    setIsEditModalOpen(false);
-
-    if (cleanUsername !== profile.username) {
-      router.push(`/profile/${cleanUsername}`);
-    } else {
-      router.refresh();
+    try {
+      const result = (await updateProfile(cleanUsername, cleanName)) as { error?: string; success?: boolean };
+      if (result?.error) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success("Profile updated.");
+      setEditOpen(false);
+      if (cleanUsername !== profile.username) router.push(`/profile/${cleanUsername}`);
+      else router.refresh();
+    } catch {
+      toast.error("Couldn't save your profile. Try again.");
+    } finally {
+      setSaving(false);
     }
   }
 
-  // Build chart data — cumulative aura over time
-  let cumulative = 0;
-  const chartData = history.map((h: any) => {
-    cumulative += h.aura_points;
-    const date = new Date(h.created_at);
-    return {
-      date: `${date.getDate()}/${date.getMonth() + 1}`,
-      aura: cumulative,
-    };
-  });
+  async function handleShareProfile() {
+    if (sharing) return;
+    setSharing(true);
+    playHapticPop();
+    const url = profileShareUrl(profile.username);
+    const text = `@${profile.username} · ${totalAura.toLocaleString("en-IN")} aura · ${tier.name} on AuraMint`;
+    try {
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ text, url });
+      } else if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(`${text}\n${url}`);
+        toast.success("Profile link copied.");
+      } else {
+        throw new Error("no share target");
+      }
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === "AbortError")) toast.error("Couldn't share the profile.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
-  // Stats calculate
-  const biggestW = events.length > 0
-    ? Math.max(...events.map((e: any) => e.aura_points))
-    : 0;
-  const biggestL = events.length > 0
-    ? Math.min(...events.map((e: any) => e.aura_points))
-    : 0;
+  const stats = [
+    {
+      label: "Events · 30d",
+      icon: Calendar,
+      node: <span className="font-mono text-base font-bold tabular-nums text-foreground">{history.length}</span>,
+    },
+    { label: "Biggest W · 30d", icon: TrendingUp, node: <AuraNumber value={biggestW} size="sm" /> },
+    { label: "Biggest L · 30d", icon: TrendingDown, node: <AuraNumber value={biggestL} size="sm" /> },
+    {
+      label: "Streak",
+      icon: Flame,
+      node: (
+        <span className="font-mono text-base font-bold tabular-nums text-foreground">
+          {profile.streak_days ?? 0}d
+        </span>
+      ),
+    },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Profile Header card box */}
+    <div className="space-y-5">
+      {/* Specimen header */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
+        initial={reducedMotion ? false : { opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-        className="glass overflow-hidden rounded-3xl border border-border/30 shadow-2xl relative"
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.3 }}
       >
-        {/* Banner holographic visual gradient */}
-        <div className="h-28 bg-gradient-to-r from-primary/15 via-accent/15 to-primary/10 relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-primary/20 via-transparent to-transparent" />
-        </div>
-
-        <div className="px-6 pb-6 relative z-10">
-          {/* Avatar and title block */}
-          <div className="-mt-12 mb-5 flex items-end gap-4">
-            <div className="flex h-22 w-22 items-center justify-center rounded-2xl border-4 border-card bg-primary/15 text-4xl font-bold text-primary shadow-xl select-none">
+        <Plate className="p-5">
+          <div className="flex items-start gap-4">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl border border-border/70 bg-secondary/40 font-display text-2xl text-foreground">
               {(profile.display_name || profile.username).charAt(0).toUpperCase()}
-            </div>
-            <div className="pb-1.5 min-w-0 flex-1">
-              <h1 className="heading text-2xl font-black tracking-tight leading-none truncate">
+            </span>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate font-display text-2xl leading-tight text-foreground">
                 {profile.display_name || profile.username}
               </h1>
-              <p className="text-xs font-semibold text-muted-foreground/60 mt-1 truncate">
-                @{profile.username}
-              </p>
+              <p className="mt-0.5 truncate text-xs text-muted-foreground">@{profile.username}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <Chip tone="lead" className="gap-2">
+                  <TierMark tier={tier.name} size="sm" />
+                  <span className="normal-case tracking-normal">{tier.name}</span>
+                </Chip>
+                {(profile.streak_days ?? 0) > 0 ? (
+                  <Chip tone="brass">
+                    <Flame className="h-3 w-3" aria-hidden="true" />
+                    {profile.streak_days}d
+                  </Chip>
+                ) : null}
+                {profile.is_premium ? (
+                  <Chip tone="brass">
+                    <Sparkles className="h-3 w-3" aria-hidden="true" />
+                    Premium
+                  </Chip>
+                ) : null}
+              </div>
             </div>
-            {isOwnProfile && (
-              <button
-                onClick={() => setIsEditModalOpen(true)}
-                className="mb-1.5 rounded-xl border border-border bg-card/65 px-4.5 py-2.5 text-xs font-extrabold uppercase tracking-wider text-muted-foreground hover:bg-secondary/60 hover:text-foreground transition active:scale-95 shrink-0 shadow-sm"
+            <div className="flex shrink-0 flex-col items-end gap-2">
+              <span className="text-right">
+                <SectionLabel>Balance</SectionLabel>
+                <span className="mt-1 block">
+                  <AuraNumber value={totalAura} size="lg" signed={false} />
+                </span>
+              </span>
+              <div className="flex items-center gap-2">
+                <IconButton label="Share this profile" onClick={handleShareProfile} loading={sharing}>
+                  <Share2 className="h-4 w-4" aria-hidden="true" />
+                </IconButton>
+                {isOwnProfile ? (
+                  <button
+                    type="button"
+                    onClick={openEdit}
+                    className="rounded-lg border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Edit
+                  </button>
+                ) : (
+                  <Link
+                    href={viewer.username ? `/vs/${viewer.username}/${profile.username}` : "/leaderboard"}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    Duel
+                  </Link>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Tier progress as a struck notch bar (no gradient) */}
+          {progress.next ? (
+            <div className="mt-5 border-t border-border/60 pt-4">
+              <div className="flex items-center justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                <span>
+                  {tier.name} → {progress.next.name}
+                </span>
+                <span className="font-mono tabular-nums">{Math.round(progress.progress)}%</span>
+              </div>
+              <div
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(progress.progress)}
+                aria-label={`Progress to ${progress.next.name}`}
+                className="mt-2.5 flex gap-1"
               >
-                Edit Profile
-              </button>
-            )}
-          </div>
-
-          {/* Aura score balances */}
-          <div className="flex flex-wrap items-center gap-3 mt-4 pt-4 border-t border-border/20">
-            <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/60">
-                Total Aura Balance
+                {Array.from({ length: 20 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "h-2 flex-1 rounded-sm",
+                      i < Math.round(progress.progress / 5) ? "bg-[#1F6F5C]" : "bg-secondary"
+                    )}
+                  />
+                ))}
+              </div>
+              <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                {Math.max(0, progress.remaining).toLocaleString("en-IN")} aura to the next hallmark
               </p>
-              <p className="heading text-3xl font-black tracking-tight text-primary mt-1 leading-none">
-                {formatAuraPoints(profile.total_aura)}
-              </p>
             </div>
-
-            <div className="ml-auto flex flex-wrap items-center gap-2">
-              <div className="rounded-2xl bg-primary/15 border border-primary/20 px-4 py-2 flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-primary">
-                <PremiumIcon emoji={tierEmojis[tier.name]} className="h-4 w-4" />
-                <span>{tier.name}</span>
-              </div>
-
-              {profile.streak_days > 0 && (
-                <div className="flex items-center gap-1.5 rounded-2xl bg-orange-500/10 border border-orange-500/25 px-4 py-2 text-xs font-bold uppercase tracking-wider text-orange-400">
-                  <Flame className="h-4 w-4" />
-                  <span>{profile.streak_days}d Streak</span>
-                </div>
-              )}
-
-              {profile.is_premium && (
-                <span className="rounded-2xl bg-gradient-to-r from-yellow-500/15 to-amber-500/15 border border-yellow-500/25 px-3 py-2 text-[10px] font-extrabold uppercase tracking-widest text-primary">
-                  ✨ Pro
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Dynamic Tier Progress Slider */}
-          {progress.next && (
-            <div className="mt-5 border-t border-border/20 pt-4">
-              <div className="flex items-center justify-between text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80">
-                <span>
-                  {tier.emoji} {tier.name}
-                </span>
-                <span>
-                  {progress.next.emoji} {progress.next.name} ({formatAuraPoints(progress.remaining)} to go)
-                </span>
-              </div>
-              <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-secondary border border-border/10">
-                <motion.div
-                  className="h-full rounded-full bg-gradient-to-r from-primary to-accent"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${progress.progress}%` }}
-                  transition={{ duration: 1.2, delay: 0.35, ease: "easeOut" }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
+          ) : null}
+        </Plate>
       </motion.div>
 
-      {/* Profile Metrics Stats Grid */}
+      {/* Ledger cells */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: "Total Events", value: events.length, icon: Calendar, color: "text-muted-foreground/70 bg-card/25" },
-          { label: "Biggest W", value: `+${formatAuraPoints(biggestW)}`, icon: TrendingUp, color: "text-emerald-400 bg-emerald-500/5 border-emerald-500/15" },
-          { label: "Biggest L", value: formatAuraPoints(biggestL), icon: TrendingDown, color: "text-red-400 bg-red-500/5 border-red-500/15" },
-          { label: "Current Streak", value: `${profile.streak_days}d`, icon: Flame, color: "text-orange-400 bg-orange-500/5 border-orange-500/15" },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15 + i * 0.08, ease: "easeOut" }}
-            className={cn("glass p-4 border border-border/30 rounded-2xl flex flex-col items-start justify-between min-h-[96px]", stat.color)}
-          >
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-card/20 border border-border/10">
-              <stat.icon className="h-4 w-4" />
-            </div>
+        {stats.map((stat) => (
+          <Plate key={stat.label} className="p-4">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/70 bg-secondary/40 text-muted-foreground">
+              <stat.icon className="h-4 w-4" aria-hidden="true" />
+            </span>
             <div className="mt-3">
-              <p className="mono text-base font-black tracking-tight">
-                {stat.value}
-              </p>
-              <p className="text-[9px] uppercase font-bold tracking-widest text-muted-foreground/60 mt-0.5">{stat.label}</p>
+              {stat.node}
+              <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">{stat.label}</p>
             </div>
-          </motion.div>
+          </Plate>
         ))}
       </div>
 
-      {/* Aura history Area chart visual */}
-      {chartData.length > 1 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.45 }}
-          className="glass p-6 border border-border/30 rounded-3xl"
-        >
-          <div className="mb-4 flex items-center justify-between">
-            <h2 className="heading text-base tracking-tight leading-none">
-              Aura Journey 📈
-            </h2>
-            <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/50">Historical Progression</span>
+      {/* Journey chart */}
+      {journey.length > 1 ? (
+        <Plate className="p-5">
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <h2 className="font-display text-lg text-foreground">Aura journey</h2>
+            <SectionLabel>Cumulative · 30d</SectionLabel>
           </div>
-          
-          <div className="w-full pt-2">
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={chartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
-                <defs>
-                  <linearGradient id="auraGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.25} />
-                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis 
-                  dataKey="date" 
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))", fontWeight: "bold" }} 
+          <div className="w-full">
+            <ResponsiveContainer width="100%" height={190}>
+              <AreaChart data={journey} margin={{ left: -14, right: 8, top: 4, bottom: 0 }}>
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
                 />
-                <YAxis 
-                  tick={{ fontSize: 9, fill: "hsl(var(--muted-foreground))", fontWeight: "bold" }} 
+                <YAxis
+                  tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip
                   contentStyle={{
                     background: "hsl(var(--card))",
-                    border: "1px solid hsl(var(--border) / 0.5)",
-                    borderRadius: "16px",
-                    fontSize: "11px",
-                    fontWeight: "bold",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: "12px",
+                    fontSize: "12px",
                     fontFamily: "var(--font-sans)",
-                    boxShadow: "0 8px 30px rgba(0,0,0,0.12)"
                   }}
                 />
                 <Area
                   type="monotone"
                   dataKey="aura"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2.5}
-                  fill="url(#auraGradient)"
+                  stroke="#1F6F5C"
+                  strokeWidth={2}
+                  fill="#1F6F5C"
+                  fillOpacity={0.12}
                 />
               </AreaChart>
             </ResponsiveContainer>
           </div>
-        </motion.div>
-      )}
+        </Plate>
+      ) : null}
 
-      {/* Recent user events list feed */}
-      <div className="pt-2">
-        <div className="mb-5 flex items-center justify-between">
-          <h2 className="heading text-base tracking-tight leading-none">
-            Recent Events
-          </h2>
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/50">Log History</span>
-        </div>
-        
-        {events.length === 0 ? (
-          <div className="glass noise flex flex-col items-center py-16 text-center border border-border/30 rounded-3xl">
-            <Sparkles className="mb-3 h-10 w-10 text-muted-foreground/30 animate-pulse" />
-            <p className="heading text-sm text-muted-foreground">No events logged yet</p>
+      {/* Own-account controls that must be reachable on mobile */}
+      {isOwnProfile ? (
+        <Plate className="p-5">
+          <SoundToggleRow />
+          <div className="mt-4 flex flex-wrap gap-2 border-t border-border/60 pt-4">
+            <Link
+              href="/badges"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Trophy className="h-3.5 w-3.5" aria-hidden="true" />
+              Badges
+            </Link>
+            <Link
+              href="/premium"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+              Premium
+            </Link>
+            <Link
+              href="/wrapped"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Rocket className="h-3.5 w-3.5" aria-hidden="true" />
+              Wrapped
+            </Link>
           </div>
+        </Plate>
+      ) : null}
+
+      {/* Recent entries */}
+      <section>
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <h2 className="font-display text-lg text-foreground">Recent entries</h2>
+          <SectionLabel>Latest {events.length}</SectionLabel>
+        </div>
+        {events.length === 0 ? (
+          <Plate className="px-5 py-10 text-center">
+            <p className="text-sm text-muted-foreground">No public entries yet.</p>
+          </Plate>
         ) : (
           <div className="space-y-4">
             {events.map((event, i) => (
-              <AuraEventCard key={event.id} event={event} index={i} />
+              <AuraEventCard
+                key={event.id}
+                event={event}
+                index={i}
+                isOwner={isOwnProfile}
+                isPremium={isOwnProfile ? viewer.isPremium : Boolean(profile.is_premium)}
+              />
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Edit Profile Modal */}
-      <AnimatePresence>
-        {isEditModalOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-sm sm:items-center p-4"
-            onClick={(e) => e.target === e.currentTarget && setIsEditModalOpen(false)}
-          >
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 280 }}
-              className="relative w-full max-w-md rounded-t-[2rem] bg-card p-7 shadow-2xl border border-border/40 sm:rounded-[2rem] overflow-hidden"
+      {/* Edit profile */}
+      <MintDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        title="Edit profile"
+        description="Your public identity in the ledger."
+      >
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="profile-display-name" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Display name
+            </label>
+            <div className="relative">
+              <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+              <input
+                id="profile-display-name"
+                type="text"
+                value={fullNameInput}
+                onChange={(e) => setFullNameInput(e.target.value.slice(0, 60))}
+                autoComplete="name"
+                className="w-full rounded-xl border border-border bg-secondary/20 py-3 pl-10 pr-3 text-sm text-foreground focus:border-[#1F6F5C]/60 focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="profile-username" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Username
+            </label>
+            <div className="relative">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">@</span>
+              <input
+                id="profile-username"
+                type="text"
+                value={usernameInput}
+                onChange={(e) => setUsernameInput(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, "").slice(0, 20))}
+                autoComplete="username"
+                aria-describedby="profile-username-note"
+                className="w-full rounded-xl border border-border bg-secondary/20 py-3 pl-8 pr-3 text-sm text-foreground focus:border-[#1F6F5C]/60 focus:outline-none"
+              />
+            </div>
+            <p id="profile-username-note" className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+              Lowercase letters, numbers and underscores, 3–20 characters. You can change a handle{" "}
+              <strong className="font-semibold text-foreground">twice every 15 days</strong>.
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button
+              type="button"
+              onClick={() => setEditOpen(false)}
+              className="flex-1 rounded-xl border border-border py-3 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:text-foreground"
             >
-              <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-
-              {/* Close Button */}
-              <button
-                onClick={() => setIsEditModalOpen(false)}
-                className="absolute right-5 top-5 z-20 rounded-xl border border-border bg-card/40 p-2.5 text-muted-foreground hover:text-foreground transition"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-
-              <div className="relative z-10">
-                <div className="mb-6 text-center">
-                  <h2 className="heading text-xl tracking-tight leading-none">Edit Profile</h2>
-                  <p className="mt-1.5 text-xs text-muted-foreground">Update your public identity details</p>
-                </div>
-
-                <div className="space-y-4">
-                  {/* Name field */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 pl-1">Name</label>
-                    <div className="relative">
-                      <User className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
-                      <input
-                        type="text"
-                        value={fullNameInput}
-                        onChange={(e) => setFullNameInput(e.target.value)}
-                        placeholder="Full Name"
-                        className="w-full rounded-2xl border border-border/80 bg-secondary/15 py-3.5 pl-11 pr-4 text-xs font-semibold transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Username field */}
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground/80 pl-1">Username</label>
-                    <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-xs font-bold text-muted-foreground/60">@</span>
-                      <input
-                        type="text"
-                        value={usernameInput}
-                        onChange={(e) => setUsernameInput(e.target.value.replace(/[^a-zA-Z0-9_]/g, "").slice(0, 20))}
-                        placeholder="username"
-                        className="w-full rounded-2xl border border-border/80 bg-secondary/15 py-3.5 pl-8 pr-4 text-xs font-semibold transition placeholder:text-muted-foreground/50 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
-                      />
-                    </div>
-                    <p className="text-[9px] text-muted-foreground/50 pl-1 font-semibold uppercase tracking-wider leading-relaxed">
-                      💡 Note: You can change your username at most **twice every 15 days**.
-                    </p>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="pt-4 flex gap-3">
-                    <button
-                      onClick={() => setIsEditModalOpen(false)}
-                      className="flex-1 rounded-2xl border border-border bg-card/45 py-3.5 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:bg-secondary/50 hover:text-foreground transition active:scale-95"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={handleSaveProfile}
-                      disabled={saving}
-                      className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-primary py-3.5 text-xs font-extrabold uppercase tracking-wider text-primary-foreground transition hover:brightness-110 shadow-lg glow-brand disabled:opacity-50 active:scale-95"
-                    >
-                      {saving ? (
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary-foreground/20 border-t-primary-foreground" />
-                      ) : (
-                        <>
-                          Save Changes
-                          <Sparkles className="h-4 w-4" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              Cancel
+            </button>
+            <PrimaryButton className="flex-1" onClick={handleSaveProfile} loading={saving}>
+              Save changes
+            </PrimaryButton>
+          </div>
+        </div>
+      </MintDialog>
     </div>
   );
 }

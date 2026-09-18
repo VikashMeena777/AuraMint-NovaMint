@@ -1,0 +1,20 @@
+{
+ "action": "restore-a-project (one-shot, operator-authorized)",
+ "documented_endpoint": "POST https://api.supabase.com/v1/projects/{ref}/restore",
+ "doc_sources": [
+  "https://api.supabase.com/api/v1-json (OpenAPI: operationId v1-restore-a-project, no request body)",
+  "https://supabase.com/docs/reference/api/v1-restore-a-project"
+ ],
+ "requested_at": "2026-09-17T16:54:43.396Z",
+ "preflight": {
+  "http_status": 200,
+  "duration_ms": 432,
+  "id": "drgparslvudatouqtjmx",
+  "name": "AuraMint",
+  "status": "COMING_UP"
+ },
+ "restore": {
+  "issued": false,
+  "reason": "project status is 'COMING_UP', not INACTIVE — no restore needed"
+ }
+}

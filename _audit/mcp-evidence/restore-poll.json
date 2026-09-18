@@ -1,0 +1,94 @@
+{
+ "probe": "bounded-restore-status-poll",
+ "ref": "drgparslvudatouqtjmx",
+ "interval_ms": 20000,
+ "max_attempts": 24,
+ "started_at": "2026-09-17T16:55:01.320Z",
+ "attempts": [
+  {
+   "attempt": 1,
+   "elapsed_s": 0,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 2,
+   "elapsed_s": 21,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 3,
+   "elapsed_s": 41,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 4,
+   "elapsed_s": 62,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 5,
+   "elapsed_s": 82,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 6,
+   "elapsed_s": 103,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 7,
+   "elapsed_s": 124,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "COMING_UP",
+   "network_error": null
+  },
+  {
+   "attempt": 8,
+   "elapsed_s": 144,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "RESTORING",
+   "network_error": null
+  },
+  {
+   "attempt": 9,
+   "elapsed_s": 165,
+   "http_status": 200,
+   "id": "drgparslvudatouqtjmx",
+   "name": "AuraMint",
+   "status": "ACTIVE_HEALTHY",
+   "network_error": null
+  }
+ ],
+ "outcome": "ACTIVE_HEALTHY",
+ "finished_at": "2026-09-17T16:57:45.915Z",
+ "final_status": "ACTIVE_HEALTHY",
+ "final_http_status": 200
+}

@@ -1,26 +1,41 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isAuthPath, isProtectedPath } from "./route-policy";
+
+/**
+ * Session refresh + optimistic route protection, executed by `src/proxy.ts`
+ * (Next.js 16 renamed the `middleware` file convention to `proxy`).
+ *
+ * Only reads the session cookie — no database work here, so prefetches stay cheap.
+ * Real authorization happens in the `(app)` layout, Server Actions and Route Handlers.
+ */
+
+let warnedAboutMissingEnv = false;
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
-  });
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if ((!supabaseUrl || !supabaseAnonKey) && !warnedAboutMissingEnv) {
+    warnedAboutMissingEnv = true;
+    console.error(
+      "[Proxy] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY are not set — auth will not work."
+    );
+  }
+
+  let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co",
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "placeholder-key",
+    supabaseUrl || "https://placeholder.supabase.co",
+    supabaseAnonKey || "placeholder-key",
     {
       cookies: {
         getAll() {
           return request.cookies.getAll();
         },
         setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          );
-          supabaseResponse = NextResponse.next({
-            request,
-          });
+          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+          supabaseResponse = NextResponse.next({ request });
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, options)
           );
@@ -34,28 +49,20 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protected routes — redirect to login if not authenticated
-  const protectedPaths = ["/dashboard", "/leaderboard", "/profile", "/premium", "/settings"];
-  const isProtected = protectedPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
+  const { pathname } = request.nextUrl;
 
-  if (isProtected && !user) {
+  if (!user && isProtectedPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
-    url.searchParams.set("redirect", request.nextUrl.pathname);
+    url.search = "";
+    url.searchParams.set("redirect", pathname);
     return NextResponse.redirect(url);
   }
 
-  // If user is logged in and visits auth pages, redirect to dashboard
-  const authPaths = ["/login", "/signup"];
-  const isAuthPage = authPaths.some((path) =>
-    request.nextUrl.pathname.startsWith(path)
-  );
-
-  if (isAuthPage && user) {
+  if (user && isAuthPath(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 

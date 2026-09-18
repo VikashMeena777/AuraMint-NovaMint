@@ -1,66 +1,84 @@
-"use client";
+import Image from "next/image";
+import Link from "next/link";
+import { BookOpenText, Gauge, ShieldCheck } from "lucide-react";
 
-import { useMemo } from "react";
+import { SiteFooter } from "@/components/layouts/site-footer";
 
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  // Generate star positions on client only to avoid hydration mismatch
-  const stars = useMemo(
-    () =>
-      Array.from({ length: 40 }, () => ({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        dur: `${3 + Math.random() * 4}s`,
-        del: `${Math.random() * 5}s`,
-        size: `${1 + Math.random() * 2}px`,
-      })),
-    []
-  );
+/**
+ * Auth shell — a banknote vignette, not a starfield.
+ *
+ * A Server Component on purpose: the previous version generated 40 random
+ * "stars" during render, which is both a hydration mismatch and a lint error
+ * (`react-hooks/purity`). The frame is now static, drawn from the engraved
+ * rosette asset, and the plate holds the form.
+ */
+const assurances = [
+  { icon: Gauge, title: "Your own aura total", body: "Every entry moves one number. No per-post metrics to farm." },
+  { icon: BookOpenText, title: "A ledger, not a feed", body: "Entries are serial-numbered and kept, so progress is visible." },
+  { icon: ShieldCheck, title: "No card, no dark patterns", body: "Free plan: 5 entries a day. Upgrade only if you want the ceiling removed." },
+];
 
+export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-transparent px-4 py-8">
-      {/* ═══ Cosmic Background ═══ */}
-      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
-        {/* Cosmic gradient mesh */}
-        <div className="absolute inset-0 cosmic-mesh animate-breathe opacity-60" />
-        {/* Dot grid */}
-        <div className="absolute inset-0 dot-grid opacity-30" />
-        {/* Floating orbs */}
-        <div className="absolute top-1/4 left-1/4 h-64 w-64 rounded-full bg-primary/15 blur-[100px] animate-breathe" />
-        <div className="absolute bottom-1/4 right-1/4 h-80 w-80 rounded-full bg-accent/15 blur-[120px] animate-breathe" style={{ animationDelay: "3s" }} />
-        <div className="absolute top-1/2 left-3/4 h-48 w-48 rounded-full bg-emerald-500/8 blur-[80px] animate-breathe" style={{ animationDelay: "5s" }} />
+    <div className="relative flex min-h-screen flex-col">
+      <div aria-hidden="true" className="guilloche pointer-events-none fixed inset-0 z-0" />
 
-        {/* Twinkling stars */}
-        {stars.map((s, i) => (
-          <div
-            key={i}
-            className="star absolute rounded-full bg-foreground/20"
-            style={{
-              left: s.left,
-              top: s.top,
-              width: s.size,
-              height: s.size,
-              ["--dur" as string]: s.dur,
-              ["--del" as string]: s.del,
-            }}
-          />
-        ))}
+      <div className="relative z-10 mx-auto flex w-full max-w-6xl flex-1 flex-col gap-10 px-4 py-8 sm:px-6 lg:flex-row lg:items-center lg:gap-16 lg:py-14">
+        {/* ── Brand panel ─────────────────────────────────────────────── */}
+        <section className="lg:flex-1">
+          <Link
+            href="/"
+            className="inline-flex items-center gap-2.5 rounded-[var(--radius)] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[hsl(var(--ring))]"
+            aria-label="AuraMint home"
+          >
+            <Image
+              src="/auramint-coin.svg"
+              alt=""
+              width={28}
+              height={28}
+              className="size-7"
+              aria-hidden="true"
+              priority
+            />
+            <span className="heading text-[20px] text-[color-mix(in_srgb,var(--brass-500)_82%,hsl(var(--foreground)))]">
+              AuraMint
+            </span>
+          </Link>
+
+          <h1 className="heading mt-6 text-[28px] leading-tight sm:text-[40px]">
+            Get your aura minted.
+          </h1>
+          <p className="mt-4 max-w-md text-[16px] leading-relaxed text-[hsl(var(--muted-foreground))]">
+            AuraMint is an assay office for social currency: log a moment, get a verdict, and keep
+            the receipt in a ledger that remembers.
+          </p>
+
+          <ul className="mt-8 hidden max-w-md flex-col gap-5 lg:flex">
+            {assurances.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex gap-3">
+                <Icon
+                  className="mt-0.5 size-5 flex-none text-[var(--brass-500)]"
+                  aria-hidden="true"
+                  strokeWidth={1.75}
+                />
+                <div>
+                  <p className="text-[14px] font-semibold">{title}</p>
+                  <p className="mt-0.5 text-[13px] leading-relaxed text-[hsl(var(--muted-foreground))]">
+                    {body}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        {/* ── Form plate ──────────────────────────────────────────────── */}
+        <main id="content" className="w-full lg:max-w-[26rem]">
+          {children}
+        </main>
       </div>
 
-      {/* Main card container — login/signup cards handle their own logo */}
-      <div className="relative z-10 w-full max-w-md">
-        {children}
-      </div>
-
-      {/* Footer */}
-      <div className="relative z-10 mt-8 text-center">
-        <p className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground/30">
-          © {new Date().getFullYear()} AuraMint. All rights reserved.
-        </p>
-      </div>
+      <SiteFooter className="relative z-10" />
     </div>
   );
 }

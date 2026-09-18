@@ -1,0 +1,27 @@
+TAP version 13
+# (node:3924) ExperimentalWarning: `--experimental-loader` may be removed in the future; instead use `register()`:
+# --import 'data:text/javascript,import { register } from "node:module"; import { pathToFileURL } from "node:url"; register("./_audit/loader.mjs", pathToFileURL("./")); register("./_audit/loader.mjs", pathToFileURL("./"));'
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# [Cron] CRON_SECRET is missing or shorter than 16 characters — refusing to run (fail closed).
+# (node:3924) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/Vikash%20Meena/Desktop/Automations/34-AuraTracker/auramint/src/app/api/cron/reconcile-payments/route.ts is not specified and it doesn't parse as CommonJS.
+# Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+# To eliminate this warning, add "type": "module" to C:\\Users\\Vikash Meena\\Desktop\\Automations\\34-AuraTracker\\auramint\\package.json.
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# [Cron: Reconcile Payments] Failed: injected shim failure
+# E2E PASS: real route handler + real auth + real supabase-js rpc + migrated PGlite
+#   unauthorized attempts: 3 (401/401/503, 0 db calls) | authorized sweep: 1 PAID-unledgered -> premium + ledger row | retry: no-op | injected db failure: 500
+# Subtest: cron reconcile-payments route: real handler, real auth, real RPC wire call, migrated PGlite
+ok 1 - cron reconcile-payments route: real handler, real auth, real RPC wire call, migrated PGlite
+  ---
+  duration_ms: 3699.864
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4039.9921

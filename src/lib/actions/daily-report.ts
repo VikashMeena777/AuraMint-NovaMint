@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { formatAuraPoints } from "@/lib/utils";
+import { sanitizePlainText, truncateCodePoints } from "@/lib/actions/safety";
 
 export type DailyReport = {
   date: string;
@@ -13,54 +13,80 @@ export type DailyReport = {
   streakDays: number;
 };
 
+type ReportEvent = {
+  description: string | null;
+  aura_points: number | null;
+  ai_emoji: string | null;
+  ai_vibe_tag: string | null;
+};
+
 export async function getDailyReport(): Promise<DailyReport | null> {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) return null;
 
   const today = new Date().toISOString().split("T")[0];
 
-  const { data: events } = await supabase
+  const { data: events, error: eventsError } = await supabase
     .from("aura_events")
     .select("description, aura_points, ai_emoji, ai_vibe_tag")
     .eq("user_id", user.id)
     .gte("created_at", `${today}T00:00:00`)
     .order("aura_points", { ascending: false });
 
+  if (eventsError) {
+    console.error("[getDailyReport] Query failed:", eventsError.message);
+    return null;
+  }
+
   if (!events || events.length === 0) return null;
 
-  const totalAuraGained = events.reduce((sum: number, e: any) => sum + e.aura_points, 0);
-  const sorted = [...events].sort((a: any, b: any) => b.aura_points - a.aura_points);
+  const typedEvents = events as ReportEvent[];
+  const scored = typedEvents.map((e) => ({
+    description: sanitizePlainText(e.description, 280),
+    points: Number(e.aura_points) || 0,
+    emoji: truncateCodePoints(e.ai_emoji, 4) || "✨",
+    vibeTag: sanitizePlainText(e.ai_vibe_tag, 40),
+  }));
 
-  const biggestW = sorted[0] && (sorted[0] as any).aura_points > 0
-    ? { description: (sorted[0] as any).description, points: (sorted[0] as any).aura_points, emoji: (sorted[0] as any).ai_emoji }
+  const totalAuraGained = scored.reduce((sum, e) => sum + e.points, 0);
+  const sorted = [...scored].sort((a, b) => b.points - a.points);
+
+  const topEvent = sorted[0];
+  const bottomEvent = sorted[sorted.length - 1];
+
+  const biggestW = topEvent && topEvent.points > 0
+    ? { description: topEvent.description, points: topEvent.points, emoji: topEvent.emoji }
     : null;
 
-  const biggestL = sorted[sorted.length - 1] && (sorted[sorted.length - 1] as any).aura_points < 0
-    ? { description: (sorted[sorted.length - 1] as any).description, points: (sorted[sorted.length - 1] as any).aura_points, emoji: (sorted[sorted.length - 1] as any).ai_emoji }
+  const biggestL = bottomEvent && bottomEvent.points < 0
+    ? { description: bottomEvent.description, points: bottomEvent.points, emoji: bottomEvent.emoji }
     : null;
 
   // Most common vibe tag
-  const vibeFreq: Record<string, number> = {};
-  events.forEach((e: any) => {
-    if (e.ai_vibe_tag) vibeFreq[e.ai_vibe_tag] = (vibeFreq[e.ai_vibe_tag] || 0) + 1;
-  });
-  const vibeOfTheDay = Object.entries(vibeFreq).sort((a, b) => b[1] - a[1])[0]?.[0] || "Chill";
+  const vibeFreq = new Map<string, number>();
+  for (const e of scored) {
+    if (e.vibeTag) vibeFreq.set(e.vibeTag, (vibeFreq.get(e.vibeTag) ?? 0) + 1);
+  }
+  const vibeOfTheDay =
+    [...vibeFreq.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "Chill";
 
   const { data: profile } = await supabase
     .from("profiles")
     .select("streak_days")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   return {
     date: today,
-    totalEvents: events.length,
+    totalEvents: scored.length,
     totalAuraGained,
     biggestW,
     biggestL,
     vibeOfTheDay,
-    streakDays: (profile as any)?.streak_days ?? 0,
+    streakDays: (profile as { streak_days?: number | null } | null)?.streak_days ?? 0,
   };
 }

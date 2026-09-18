@@ -1,0 +1,50 @@
+
+> auramint@0.1.0 build
+> next build
+
+▲ Next.js 16.3.5 (Turbopack)
+- Environments: .env.local
+✓ Running next.config.ts took 37ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 6.0s
+  Running TypeScript ...
+  Finished TypeScript in 13.9s ...
+  Collecting page data using 7 workers ...
+  Generating static pages using 7 workers (0/7) ...
+  Generating static pages using 7 workers (1/7) 
+  Generating static pages using 7 workers (3/7) 
+  Generating static pages using 7 workers (5/7) 
+✓ Generating static pages using 7 workers (7/7) in 1518ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ƒ /analytics
+├ ƒ /api/cron/daily-report
+├ ƒ /api/cron/streak-reminder
+├ ƒ /api/cron/weekly-digest
+├ ƒ /api/payments/verify
+├ ƒ /api/webhooks/cashfree
+├ ƒ /auth/callback
+├ ƒ /badges
+├ ƒ /dashboard
+├ ƒ /event/[id]
+├ ƒ /leaderboard
+├ ○ /login
+├ ƒ /onboarding
+├ ƒ /premium
+├ ƒ /profile
+├ ƒ /profile/[username]
+├ ○ /reset-password
+├ ○ /signup
+├ ƒ /vs/[user1]/[user2]
+└ ƒ /wrapped
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

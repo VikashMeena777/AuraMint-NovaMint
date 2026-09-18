@@ -1,119 +1,173 @@
 "use client";
 
-// Web Audio API Synthesizer Engine for AuraMint+ Haptic Sounds
-// 0 asset downloads required. Generates pure synth waves in the browser dynamically.
+// Web Audio synthesiser for AuraMint haptics — zero asset downloads (important on
+// Indian mobile data). Every sound is gated behind a persisted mute preference so a
+// user who is done with the noise never hears it again, and no call can ever throw an
+// unhandled rejection (resume() and oscillator scheduling used to be fire-and-forget).
+
+const MUTE_KEY = "auramint:sound-muted";
 
 let audioCtx: AudioContext | null = null;
+const listeners = new Set<(muted: boolean) => void>();
 
-function getAudioContext() {
+function safeStorage(): Storage | null {
+  try {
+    if (typeof window === "undefined") return null;
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/** Persisted mute preference. Defaults to sound ON. */
+export function isSoundMuted(): boolean {
+  const store = safeStorage();
+  if (!store) return false;
+  try {
+    return store.getItem(MUTE_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function setSoundMuted(muted: boolean): void {
+  const store = safeStorage();
+  try {
+    store?.setItem(MUTE_KEY, muted ? "1" : "0");
+  } catch {
+    /* storage unavailable — keep the in-memory behaviour */
+  }
+  listeners.forEach((fn) => {
+    try {
+      fn(muted);
+    } catch {
+      /* listener errors must not break audio control */
+    }
+  });
+}
+
+export function toggleSoundMuted(): boolean {
+  const next = !isSoundMuted();
+  setSoundMuted(next);
+  return next;
+}
+
+/** Subscribe to mute changes (used by the toggle UI). Returns an unsubscribe fn. */
+export function subscribeSoundMuted(fn: (muted: boolean) => void): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+type WindowWithWebkitAudio = Window & { webkitAudioContext?: typeof AudioContext };
+
+function getAudioContext(): AudioContext | null {
   if (typeof window === "undefined") return null;
+  if (isSoundMuted()) return null;
   if (!audioCtx) {
-    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const Ctor = window.AudioContext ?? (window as WindowWithWebkitAudio).webkitAudioContext;
+    if (!Ctor) return null;
+    try {
+      audioCtx = new Ctor();
+    } catch {
+      return null;
+    }
   }
   if (audioCtx.state === "suspended") {
-    audioCtx.resume();
+    audioCtx.resume().catch(() => {
+      /* autoplay policy — silently stay suspended */
+    });
   }
   return audioCtx;
 }
 
-export function playHapticPop() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+type ToneOptions = {
+  type: OscillatorType;
+  freq: number;
+  endFreq?: number;
+  at: number;
+  duration: number;
+  peak: number;
+  detune?: number;
+};
 
+function scheduleTone(ctx: AudioContext, tone: ToneOptions): void {
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
 
   osc.connect(gain);
   gain.connect(ctx.destination);
 
-  osc.type = "sine";
-  osc.frequency.setValueAtTime(180, ctx.currentTime);
-  osc.frequency.exponentialRampToValueAtTime(80, ctx.currentTime + 0.05);
+  osc.type = tone.type;
+  if (tone.detune) osc.detune.setValueAtTime(tone.detune, tone.at);
+  osc.frequency.setValueAtTime(tone.freq, tone.at);
+  if (tone.endFreq) {
+    osc.frequency.exponentialRampToValueAtTime(Math.max(1, tone.endFreq), tone.at + tone.duration);
+  }
 
-  gain.gain.setValueAtTime(0.06, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+  gain.gain.setValueAtTime(0.0001, tone.at);
+  gain.gain.exponentialRampToValueAtTime(tone.peak, tone.at + 0.012);
+  gain.gain.exponentialRampToValueAtTime(0.0001, tone.at + tone.duration);
 
-  osc.start();
-  osc.stop(ctx.currentTime + 0.06);
+  osc.start(tone.at);
+  osc.stop(tone.at + tone.duration + 0.02);
 }
 
-export function playAuraGainSound() {
+/** Run a sound only when sound is enabled; never let Web Audio errors escape. */
+function play(build: (ctx: AudioContext, now: number) => void): void {
   const ctx = getAudioContext();
   if (!ctx) return;
+  try {
+    build(ctx, ctx.currentTime + 0.005);
+  } catch {
+    /* audio is decoration — never break the interaction */
+  }
+}
 
-  // Play a gorgeous major scale rising arpeggio
-  const now = ctx.currentTime;
-  const notes = [261.63, 329.63, 392.00, 523.25, 659.25]; // C4, E4, G4, C5, E5
-
-  notes.forEach((freq, i) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(freq, now + i * 0.08);
-
-    gain.gain.setValueAtTime(0.08, now + i * 0.08);
-    gain.gain.exponentialRampToValueAtTime(0.01, now + i * 0.08 + 0.25);
-
-    osc.start(now + i * 0.08);
-    osc.stop(now + i * 0.08 + 0.3);
+/** Short struck-brass ping. Use for presses, chips, navigation. */
+export function playHapticPop(): void {
+  play((ctx, now) => {
+    scheduleTone(ctx, { type: "triangle", freq: 1180, endFreq: 720, at: now, duration: 0.11, peak: 0.045 });
+    scheduleTone(ctx, { type: "sine", freq: 2360, at: now, duration: 0.06, peak: 0.02 });
   });
 }
 
-export function playAuraLossSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
-
-  const now = ctx.currentTime;
-  
-  // Play a quick downward sliding retro synth buzz
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
-
-  osc.connect(gain);
-  gain.connect(ctx.destination);
-
-  osc.type = "sawtooth";
-  osc.frequency.setValueAtTime(220, now);
-  osc.frequency.linearRampToValueAtTime(80, now + 0.35);
-
-  gain.gain.setValueAtTime(0.08, now);
-  gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
-
-  osc.start();
-  osc.stop(now + 0.4);
+/** Rising major arpeggio for a positive mint. */
+export function playAuraGainSound(): void {
+  play((ctx, now) => {
+    const notes = [261.63, 329.63, 392.0, 523.25, 659.25]; // C4 E4 G4 C5 E5
+    notes.forEach((freq, i) => {
+      scheduleTone(ctx, {
+        type: "triangle",
+        freq,
+        at: now + i * 0.075,
+        duration: 0.24,
+        peak: 0.06,
+      });
+    });
+  });
 }
 
-export function playPremiumUpgradeSound() {
-  const ctx = getAudioContext();
-  if (!ctx) return;
+/** Dull thud + downward slide for a loss. */
+export function playAuraLossSound(): void {
+  play((ctx, now) => {
+    scheduleTone(ctx, { type: "sine", freq: 150, endFreq: 70, at: now, duration: 0.3, peak: 0.09 });
+    scheduleTone(ctx, { type: "sawtooth", freq: 220, endFreq: 90, at: now, duration: 0.26, peak: 0.035 });
+  });
+}
 
-  const now = ctx.currentTime;
-  
-  // High-status rising celestial oscillator sweep
-  const numOscillators = 3;
-  const detunes = [-10, 0, 10];
-  
-  detunes.forEach((detune) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    osc.type = "sine";
-    osc.detune.setValueAtTime(detune, now);
-    osc.frequency.setValueAtTime(330, now); // E4
-    osc.frequency.exponentialRampToValueAtTime(880, now + 1.2); // A5
-
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.linearRampToValueAtTime(0.08, now + 0.4);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 1.5);
-
-    osc.start();
-    osc.stop(now + 1.5);
+/** Detuned rising sweep for the premium certificate. */
+export function playPremiumUpgradeSound(): void {
+  play((ctx, now) => {
+    [-10, 0, 10].forEach((detune) => {
+      scheduleTone(ctx, {
+        type: "sine",
+        freq: 330,
+        endFreq: 880,
+        at: now,
+        duration: 1.2,
+        peak: 0.055,
+        detune,
+      });
+    });
   });
 }

@@ -1,54 +1,74 @@
-import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Syne, JetBrains_Mono } from "next/font/google";
-import { ThemeProvider } from "@/components/providers/theme-provider";
+import type { Metadata, Viewport } from "next";
+import { Instrument_Sans, Instrument_Serif, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "sonner";
+
+import { ThemeProvider } from "@/components/providers/theme-provider";
+import { MotionProvider } from "@/components/providers/motion-provider";
+import { SessionProvider } from "@/components/providers/session-provider";
 import "./globals.css";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta-sans",
+/**
+ * Type system — three faces, one job each:
+ * - Instrument Serif  → display (page titles, tier names, struck figures)
+ * - Instrument Sans   → UI and body
+ * - JetBrains Mono    → every ledger figure, tabular
+ * Weights are limited to what the UI actually uses: font files are the single
+ * biggest asset cost on the mid-range Android devices most of our users hold.
+ */
+const instrumentSerif = Instrument_Serif({
+  variable: "--font-instrument-serif",
   subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
 });
 
-const syne = Syne({
-  variable: "--font-syne",
+const instrumentSans = Instrument_Sans({
+  variable: "--font-instrument-sans",
   subsets: ["latin"],
   display: "swap",
-  weight: ["500", "600", "700", "800"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains-mono",
   subsets: ["latin"],
   display: "swap",
-  weight: ["400", "500", "600", "700", "800"],
 });
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://auramint.novamintnetworks.in";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(appUrl),
   title: {
-    default: "AuraMint — Track Your Aura Energy 👑",
-    template: "%s | AuraMint",
+    default: "AuraMint — get your aura minted",
+    template: "%s · AuraMint",
   },
   description:
-    "AI-powered aura scoring for Gen-Z. Log daily moments, get dramatic Hinglish verdicts, compete on leaderboards. From NPC to GOD MODE.",
-  keywords: ["aura tracker", "aura points", "gen z app", "aura meme", "main character energy"],
+    "Log a life moment, get an AI verdict and an aura figure, then keep it in a public ledger. Eight tiers, from Negative Aura to GOD MODE. Free to start, no card.",
+  keywords: ["aura tracker", "aura points", "ai verdicts", "aura leaderboard", "hindlish"],
   authors: [{ name: "NovaMint Networks" }],
   openGraph: {
-    title: "AuraMint — Track Your Aura Energy 👑",
-    description: "AI rates your life moments with savage aura points. Compete. Share. Go viral.",
-    url: "https://auramint.novamintnetworks.in",
+    title: "AuraMint — get your aura minted",
+    description:
+      "Every moment has an aura. Log it, get it assayed, and keep the receipt in a public ledger.",
+    url: appUrl,
     siteName: "AuraMint",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "AuraMint — Track Your Aura Energy 👑",
-    description: "AI-powered aura scoring. Log moments. Get roasted. Go viral.",
+    title: "AuraMint — get your aura minted",
+    description: "Log a moment. Get an AI verdict. Keep the receipt.",
   },
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || "https://auramint.novamintnetworks.in"
-  ),
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#F4EFE3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0B0E0C" },
+  ],
 };
 
 export default function RootLayout({
@@ -60,21 +80,12 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${plusJakartaSans.variable} ${syne.variable} ${jetbrainsMono.variable}`}
+      className={`${instrumentSerif.variable} ${instrumentSans.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen text-[hsl(var(--foreground))] antialiased relative">
-        {/* Global tactile grain overlay */}
-        <div className="pointer-events-none fixed inset-0 z-50 grain opacity-[0.02] dark:opacity-[0.035] mix-blend-overlay" />
-
-        {/* Animated Premium Backdrop Light Leaks */}
-        <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-          {/* Orb 1: Golden Aura */}
-          <div className="orb-drift-1 absolute -top-60 -left-60 h-[850px] w-[850px] rounded-full bg-gradient-to-br from-amber-500/18 via-orange-500/18 to-rose-500/8 blur-[130px] opacity-80" />
-          {/* Orb 2: Purple Aura */}
-          <div className="orb-drift-2 absolute -bottom-60 -right-60 h-[900px] w-[900px] rounded-full bg-gradient-to-br from-indigo-500/18 via-purple-500/18 to-pink-500/8 blur-[130px] opacity-80" />
-          {/* Orb 3: Cosmic Teal */}
-          <div className="orb-drift-3 absolute top-1/3 left-1/3 h-[700px] w-[700px] rounded-full bg-gradient-to-br from-teal-500/10 via-emerald-500/8 to-cyan-500/8 blur-[150px] opacity-60" />
-        </div>
+      <body className="min-h-screen antialiased">
+        <a className="skip-link" href="#content">
+          Skip to content
+        </a>
 
         <ThemeProvider
           attribute="class"
@@ -82,15 +93,27 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
-          <div className="relative z-10">{children}</div>
+          <MotionProvider>
+            <SessionProvider>
+              <div className="relative z-10">{children}</div>
+            </SessionProvider>
+          </MotionProvider>
+
           <Toaster
             position="top-center"
-            richColors
             closeButton
             toastOptions={{
               style: {
-                fontFamily: "var(--font-plus-jakarta-sans), system-ui",
-                borderRadius: "16px",
+                fontFamily: "var(--font-instrument-sans), system-ui, sans-serif",
+                fontSize: "14px",
+                borderRadius: "4px",
+                background: "hsl(var(--card))",
+                color: "hsl(var(--foreground))",
+                border: "1px solid hsl(var(--border))",
+                boxShadow: "0 1px 2px hsl(var(--background))",
+              },
+              classNames: {
+                actionButton: "!bg-[hsl(var(--primary))] !text-[hsl(var(--primary-foreground))]",
               },
             }}
           />

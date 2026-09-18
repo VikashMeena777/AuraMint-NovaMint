@@ -1,7 +1,13 @@
 /**
  * AuraMint branded email template wrapper.
  * All emails use this base layout for consistent branding.
+ *
+ * `content` must already be escaped by the caller (see `./render`); the preheader is
+ * escaped here so a caller can pass raw text safely.
  */
+
+import { escapeHtml } from "@/lib/actions/safety";
+
 export function emailLayout(content: string, preheader?: string): string {
   return `
 <!DOCTYPE html>
@@ -10,7 +16,7 @@ export function emailLayout(content: string, preheader?: string): string {
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  ${preheader ? `<span style="display:none;font-size:1px;color:#fff;max-height:0;overflow:hidden;">${preheader}</span>` : ""}
+  ${preheader ? `<span style="display:none;font-size:1px;color:#fff;max-height:0;overflow:hidden;">${escapeHtml(preheader)}</span>` : ""}
   <style>
     body { margin: 0; padding: 0; background-color: #0c0c14; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; }
     .container { max-width: 520px; margin: 0 auto; padding: 32px 20px; }

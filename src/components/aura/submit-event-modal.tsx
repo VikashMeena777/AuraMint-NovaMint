@@ -1,395 +1,393 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { X, Sparkles, Zap, Crown } from "lucide-react";
-import { CelebrationEffect } from "@/components/aura/celebration-effect";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { motion, useReducedMotion } from "framer-motion";
+import { Sparkles, Zap, Crown, ArrowRight, Flame } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { CATEGORIES } from "@/lib/ai/prompts";
 import { submitAuraEvent } from "@/lib/actions/aura-actions";
-import { toast } from "sonner";
-import { cn, formatAuraPoints } from "@/lib/utils";
-import { PremiumIcon } from "@/components/aura/premium-icon";
-import { playHapticPop, playAuraGainSound, playAuraLossSound } from "@/lib/utils/sound";
+import type { SubmitAuraResult } from "./types";
+import { CelebrationEffect } from "./celebration-effect";
+import { AuraNumber } from "./aura-number";
+import { EmojiMark, Plate, PrimaryButton, Switch } from "./primitives";
+import { TierMark } from "./tier-mark";
+import { MintDialog } from "./mint-dialog";
+import { usePlanLimits } from "./hooks";
+import { MINT, tierName } from "./mint";
+import { playAuraGainSound, playAuraLossSound, playHapticPop } from "@/lib/utils/sound";
 
-type AuraResult = {
-  event: {
-    id: string;
-    description: string;
-    aura_points: number;
-    ai_verdict: string;
-    ai_vibe_tag: string;
-    ai_emoji: string;
-  };
-  aura: { points: number; verdict: string; vibe_tag: string; emoji: string };
-  newTotalAura: number;
-  newTier: string;
-  streakBonus: number;
-  streak: number;
-};
+/** Broadcast so the feed / daily report refresh after a successful mint. */
+export const EVENT_MINTED_EVENT = "auramint:event-minted";
+const LEGENDARY_THRESHOLD = 5000;
 
-export function SubmitEventModal({
-  onEventSubmitted,
-}: {
-  onEventSubmitted?: () => void;
-}) {
+type CategoryValue = (typeof CATEGORIES)[number]["value"];
+
+export function SubmitEventModal({ onEventSubmitted }: { onEventSubmitted?: () => void }) {
   const [isOpen, setIsOpen] = useState(false);
   const [description, setDescription] = useState("");
-  const [category, setCategory] = useState<"crush" | "school" | "work" | "gym" | "social" | "family" | "random">("random");
-  const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState<AuraResult | null>(null);
-  const [showReveal, setShowReveal] = useState(false);
+  const [category, setCategory] = useState<CategoryValue>("random");
   const [vibeRoll, setVibeRoll] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<SubmitAuraResult | null>(null);
+  const [limitsKey, setLimitsKey] = useState(0);
+  const limits = usePlanLimits(limitsKey);
+  const resetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSubmittedRef = useRef(onEventSubmitted);
 
-  // Listen for mobile bottom nav open event
   useEffect(() => {
-    function handleOpen() {
-      setIsOpen(true);
-      playHapticPop();
-    }
-    window.addEventListener("open-submit-modal", handleOpen);
-    return () => window.removeEventListener("open-submit-modal", handleOpen);
-  }, []);
+    onSubmittedRef.current = onEventSubmitted;
+  });
 
-  function resetState() {
+  const resetState = useCallback(() => {
     setDescription("");
     setCategory("random");
-    setResult(null);
-    setShowReveal(false);
     setVibeRoll(false);
-  }
+    setResult(null);
+  }, []);
+
+  const open = useCallback(() => {
+    if (resetTimer.current) {
+      clearTimeout(resetTimer.current);
+      resetTimer.current = null;
+    }
+    setIsOpen(true);
+    playHapticPop();
+  }, []);
+
+  // Two legacy event names exist for one concept — accept both so the bottom nav and the
+  // command palette both work now that this modal is mounted once for the whole app.
+  useEffect(() => {
+    const onOpen = () => open();
+    window.addEventListener("open-submit-modal", onOpen);
+    window.addEventListener("open-aura-log-modal", onOpen);
+    return () => {
+      window.removeEventListener("open-submit-modal", onOpen);
+      window.removeEventListener("open-aura-log-modal", onOpen);
+    };
+  }, [open]);
+
+  // Clear the deferred reset if the component unmounts mid-close.
+  useEffect(
+    () => () => {
+      if (resetTimer.current) clearTimeout(resetTimer.current);
+    },
+    []
+  );
 
   function handleClose() {
     setIsOpen(false);
     playHapticPop();
-    setTimeout(resetState, 300);
+    if (resetTimer.current) clearTimeout(resetTimer.current);
+    resetTimer.current = setTimeout(resetState, 250);
   }
 
   async function handleSubmit() {
-    if (description.length < 5) {
-      toast.error("Tell us what happened! (at least 5 characters)");
+    if (submitting) return;
+    const trimmed = description.trim();
+    if (trimmed.length < 5) {
+      toast.error("Tell us what happened — at least 5 characters.");
+      return;
+    }
+    if (limits.ready && !limits.canSubmit) {
+      toast.error("You have used today's free mint. Upgrade for unlimited events.");
       return;
     }
 
     playHapticPop();
-    setLoading(true);
-    const response = await submitAuraEvent({
-      description,
-      category,
-      isPublic: true,
-      vibeRoll,
-    });
+    setSubmitting(true);
+    try {
+      const response = (await submitAuraEvent({
+        description: trimmed,
+        category,
+        isPublic: true,
+        vibeRoll,
+      })) as SubmitAuraResult;
 
-    setLoading(false);
-
-    if (response.error) {
-      toast.error(response.error);
-      return;
-    }
-
-    if (response.success) {
-      const res = response as AuraResult;
-      const points = res.aura?.points ?? 0;
-      if (points >= 0) {
-        playAuraGainSound();
-      } else {
-        playAuraLossSound();
+      if (response?.error) {
+        toast.error(response.error);
+        setLimitsKey((k) => k + 1);
+        return;
       }
-      setResult(res);
-      setShowReveal(true);
-      onEventSubmitted?.();
+      if (!response?.success) {
+        toast.error("Something went wrong while minting. Try again.");
+        return;
+      }
+
+      const points = response.aura?.points ?? 0;
+      if (points >= 0) playAuraGainSound();
+      else playAuraLossSound();
+
+      setResult(response);
+      setLimitsKey((k) => k + 1);
+      window.dispatchEvent(new CustomEvent(EVENT_MINTED_EVENT, { detail: { eventId: response.event?.id } }));
+      onSubmittedRef.current?.();
+    } catch {
+      toast.error("Couldn't reach the mint. Check your connection and try again.");
+    } finally {
+      setSubmitting(false);
     }
   }
 
+  const revealOpen = Boolean(result);
+  const canSubmit = description.trim().length >= 5 && !(limits.ready && !limits.canSubmit);
+
   return (
     <>
-      {/* Desktop FAB Button overlay */}
+      {/* Desktop strike button — the mobile entry point is the bottom nav Log action. */}
       <button
-        onClick={() => { setIsOpen(true); playHapticPop(); }}
-        className="fixed bottom-8 right-8 z-30 hidden items-center gap-3.5 rounded-2xl bg-primary px-7 py-4.5 text-xs font-extrabold uppercase tracking-wider text-primary-foreground shadow-2xl transition-all hover:scale-105 active:scale-95 lg:flex glow-brand border border-primary/20"
+        type="button"
+        onClick={open}
+        className="fixed bottom-8 right-8 z-30 hidden items-center gap-2.5 rounded-xl border border-[#16564A] bg-[#1F6F5C] px-5 py-3.5 text-xs font-semibold uppercase tracking-[0.12em] text-[#F7F4EC] shadow-lg transition-colors hover:bg-[#16564A] lg:flex"
         id="desktop-submit-btn"
       >
-        <Zap className="h-5 w-5 animate-pulse" />
-        Log Aura Event
+        <Zap className="h-4 w-4" aria-hidden="true" />
+        Log aura event
       </button>
 
-      {/* Modal Overlay background */}
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-end justify-center bg-black/65 backdrop-blur-sm sm:items-center p-4"
-            onClick={(e) => e.target === e.currentTarget && handleClose()}
-          >
-            <motion.div
-              initial={{ y: "100%", opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 25, stiffness: 280 }}
-              className="relative w-full max-w-lg rounded-t-[2rem] bg-card p-7 shadow-2xl border border-border/40 sm:rounded-[2rem] overflow-hidden"
-            >
-              {/* Glow effects inside modal */}
-              <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
+      <MintDialog
+        open={isOpen}
+        onOpenChange={(next) => {
+          if (!next) handleClose();
+        }}
+        title={revealOpen ? "Minted" : "What happened?"}
+        description={
+          revealOpen
+            ? "Recorded in your ledger."
+            : "Describe the moment. The assayer returns points, a verdict and a vibe tag."
+        }
+      >
+        {!revealOpen ? (
+          <>
+            {/* Quota strip */}
+            <Plate className="mb-5 px-3.5 py-2.5">
+              <div className="flex items-center justify-between gap-3 text-[11px]">
+                <span className="font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+                  {limits.isPremium ? "Premium mint" : "Free mint"}
+                </span>
+                <span className={cn("font-mono tabular-nums", limits.isPremium ? "text-[#8A6E14] dark:text-[#C9A227]" : "text-muted-foreground")}>
+                  {limits.dailyEventsLimit === null
+                    ? "unlimited today"
+                    : `${limits.dailyEventsUsed}/${limits.dailyEventsLimit} today`}
+                </span>
+              </div>
+              {limits.ready && !limits.canSubmit ? (
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+                  Daily limit reached.{" "}
+                  <Link href="/premium" className="font-semibold text-[#16604F] underline dark:text-[#43B994]">
+                    Go unlimited
+                  </Link>
+                  .
+                </p>
+              ) : null}
+            </Plate>
 
-              {/* Close */}
-              <button
-                onClick={handleClose}
-                className="absolute right-5 top-5 rounded-xl border border-border bg-card/40 p-2.5 text-muted-foreground hover:text-foreground transition"
-              >
-                <X className="h-4.5 w-4.5" />
-              </button>
-
-              {!showReveal ? (
-                <>
-                  {/* Header Title */}
-                  <div className="mb-6 mt-2">
-                    <h2 className="heading text-xl tracking-tight leading-none">
-                      What Happened? ⚡
-                    </h2>
-                    <p className="mt-1.5 text-xs text-muted-foreground">
-                      Tell the AI your moment and watch your aura values change
-                    </p>
-                  </div>
-
-                  {/* Category Chips Selection */}
-                  <div className="mb-5">
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-muted-foreground/80">
-                      Category
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {CATEGORIES.map((cat) => {
-                        const isSelected = category === cat.value;
-                        return (
-                          <motion.button
-                            key={cat.value}
-                            onClick={() => { setCategory(cat.value as typeof category); playHapticPop(); }}
-                            animate={isSelected ? { scale: 1.05 } : { scale: 1 }}
-                            whileTap={{ scale: 0.93 }}
-                            transition={{ type: "spring", stiffness: 400, damping: 20 }}
-                            className={cn(
-                              "rounded-2xl px-4 py-2 text-xs font-bold transition-all border-2 flex items-center gap-1.5 cursor-pointer",
-                              isSelected
-                                ? "bg-primary text-primary-foreground border-primary shadow-[0_0_16px_hsl(var(--primary)/0.35)] ring-2 ring-primary/30 ring-offset-1 ring-offset-card"
-                                : "bg-secondary/40 border-transparent text-muted-foreground hover:bg-secondary/80 hover:border-border/50"
-                            )}
-                          >
-                            <PremiumIcon emoji={cat.emoji} className="h-3.5 w-3.5" />
-                            <span>{cat.label}</span>
-                            {isSelected && <Sparkles className="h-3 w-3 animate-pulse ml-0.5" />}
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Description Input Text Box */}
-                  <div className="mb-6">
-                    <textarea
-                      value={description}
-                      onChange={(e) =>
-                        setDescription(e.target.value.slice(0, 280))
-                      }
-                      placeholder="e.g., Held the lift for college professor and he actually smiled back..."
-                      rows={3}
-                      className="w-full resize-none rounded-2xl border border-border bg-secondary/15 p-4 text-xs sm:text-sm transition placeholder:text-muted-foreground/45 focus:border-primary/50 focus:bg-secondary/35 focus:outline-none"
-                      autoFocus
-                    />
-                    <p className="mt-1 text-right text-[10px] font-bold text-muted-foreground/60 uppercase tracking-widest">
-                      <span
-                        className={cn(
-                          description.length > 250 && "text-destructive"
-                        )}
-                      >
-                        {description.length}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Vibe Roll Double or Nothing Option */}
-                  <div className={cn(
-                    "mb-6 rounded-2xl border-2 p-4 flex items-center justify-between transition-all duration-300",
-                    vibeRoll
-                      ? "border-primary/40 bg-primary/10 shadow-[0_0_24px_hsl(var(--primary)/0.15)]"
-                      : "border-border/30 bg-secondary/10"
-                  )}>
-                    <div className="flex-1 min-w-0 pr-4">
-                      <p className={cn(
-                        "text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 leading-none transition-colors",
-                        vibeRoll ? "text-primary" : "text-muted-foreground"
-                      )}>
-                        <Sparkles className={cn("h-3.5 w-3.5", vibeRoll && "animate-pulse")} />
-                        Aura Vibe Roll Gamble
-                      </p>
-                      <p className="text-[10px] leading-relaxed text-muted-foreground mt-1.5">
-                        Double or Nothing (50% chance). Win double aura or lose it all! 🎲
-                      </p>
-                    </div>
+            {/* Category */}
+            <fieldset className="mb-5">
+              <legend className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+                Category
+              </legend>
+              <div className="flex flex-wrap gap-2">
+                {CATEGORIES.map((cat) => {
+                  const selected = category === cat.value;
+                  const MetaIcon = cat.emoji;
+                  return (
                     <button
+                      key={cat.value}
                       type="button"
-                      role="switch"
-                      aria-checked={vibeRoll}
-                      onClick={() => { setVibeRoll(!vibeRoll); playHapticPop(); }}
+                      aria-pressed={selected}
+                      onClick={() => {
+                        setCategory(cat.value);
+                        playHapticPop();
+                      }}
                       className={cn(
-                        "relative inline-flex h-7 w-13 shrink-0 cursor-pointer rounded-full border-2 transition-all duration-300 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-                        vibeRoll
-                          ? "bg-primary border-primary/60 shadow-[0_0_12px_hsl(var(--primary)/0.4)]"
-                          : "bg-muted border-border/50"
+                        "inline-flex items-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition-colors",
+                        selected
+                          ? "border-[#1F6F5C] bg-[#1F6F5C]/10 text-foreground"
+                          : "border-border/70 text-muted-foreground hover:border-[#1F6F5C]/30 hover:text-foreground"
                       )}
                     >
-                      <motion.span
-                        layout
-                        transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        className={cn(
-                          "pointer-events-none inline-block h-5.5 w-5.5 mt-[1px] rounded-full shadow-lg transition-colors duration-300",
-                          vibeRoll
-                            ? "bg-primary-foreground ml-[22px]"
-                            : "bg-foreground/70 ml-[2px]"
-                        )}
-                      />
+                      <EmojiMark emoji={MetaIcon} className="text-sm" label={cat.label} />
+                      {cat.label}
                     </button>
-                  </div>
+                  );
+                })}
+              </div>
+            </fieldset>
 
-                  {/* Submit Trigger Action */}
-                  <button
-                    onClick={handleSubmit}
-                    disabled={loading || description.length < 5}
-                    className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-primary px-5 py-4.5 text-xs font-extrabold uppercase tracking-wider text-primary-foreground transition-all hover:brightness-110 shadow-lg glow-brand disabled:opacity-50"
-                    id="calculate-aura-btn"
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2.5">
-                        <div className="h-4.5 w-4.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-                        <span>Calculating Aura Impact...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <Sparkles className="h-4.5 w-4.5" />
-                        <span>Calculate My Aura</span>
-                      </>
-                    )}
-                  </button>
-                </>
-              ) : (
-                /* Aura Reveal Results Card */
-                result && (
-                  <AuraReveal
-                    result={result}
-                    onClose={handleClose}
-                  />
-                )
+            {/* Moment */}
+            <div className="mb-5">
+              <label
+                htmlFor="aura-event-description"
+                className="mb-2 block text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+              >
+                The moment
+              </label>
+              <textarea
+                id="aura-event-description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, 280))}
+                placeholder="Held the lift for the professor and he actually smiled back…"
+                rows={4}
+                maxLength={280}
+                aria-describedby="aura-event-counter"
+                className="w-full resize-none rounded-xl border border-border bg-secondary/20 p-4 text-sm text-foreground transition placeholder:text-muted-foreground/60 focus:border-[#1F6F5C]/60 focus:outline-none"
+              />
+              <p id="aura-event-counter" className="mt-1 text-right font-mono text-[11px] tabular-nums text-muted-foreground">
+                <span className={cn(description.length > 250 && "text-[#9E3A26] dark:text-[#E0795F]")}>
+                  {description.length}
+                </span>
+                /280
+              </p>
+            </div>
+
+            {/* Vibe roll */}
+            <div
+              className={cn(
+                "mb-5 rounded-xl border p-3.5 transition-colors",
+                vibeRoll ? "border-[#C9A227]/40 bg-[#C9A227]/10" : "border-border/70"
               )}
-            </motion.div>
-          </motion.div>
+            >
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-foreground">
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
+                    Vibe roll
+                  </p>
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                    Double or nothing. A fair coin decides: double the points, or lose them.
+                  </p>
+                </div>
+                <Switch checked={vibeRoll} onCheckedChange={setVibeRoll} label="Toggle vibe roll double or nothing" />
+              </div>
+            </div>
+
+            <PrimaryButton
+              onClick={handleSubmit}
+              loading={submitting}
+              disabled={!canSubmit}
+              className="w-full"
+              id="calculate-aura-btn"
+            >
+              {submitting ? "Assaying your moment" : "Calculate my aura"}
+            </PrimaryButton>
+          </>
+        ) : (
+          <AuraReveal result={result as SubmitAuraResult} onClose={handleClose} />
         )}
-      </AnimatePresence>
+      </MintDialog>
     </>
   );
 }
 
-function AuraReveal({
-  result,
-  onClose,
-}: {
-  result: AuraResult;
-  onClose: () => void;
-}) {
-  const isPositive = result.aura.points >= 0;
-  const isLegendary = Math.abs(result.aura.points) >= 5000;
+function AuraReveal({ result, onClose }: { result: SubmitAuraResult; onClose: () => void }) {
+  const reducedMotion = useReducedMotion();
+  const points = result.aura?.points ?? 0;
+  const isPositive = points >= 0;
+  const isLegendary = Math.abs(points) >= LEGENDARY_THRESHOLD;
+  const tier = tierName(result.newTier);
+  const eventId = result.event?.id;
 
   return (
-    <div className="text-center py-4 relative">
-      {/* Confetti particle elements based on scoring value */}
-      {isLegendary && (
-        <CelebrationEffect type={isPositive ? "confetti" : "skull"} />
-      )}
-      
-      {/* Emoji graphic */}
-      <motion.div
-        initial={{ scale: 0, rotate: -180 }}
-        animate={{ scale: 1, rotate: 0 }}
-        transition={{ type: "spring", delay: 0.1, stiffness: 200 }}
-        className="mb-3 flex justify-center select-none"
-      >
-        <PremiumIcon emoji={result.aura.emoji} className="h-14 w-14" />
-      </motion.div>
+    <div className="relative text-center">
+      {isLegendary ? (
+        // Seeded from the event id → deterministic particles, no Math.random in render.
+        <CelebrationEffect
+          type={isPositive ? "confetti" : "skull"}
+          seed={eventId ? eventId.split("").reduce((a, c) => a + c.charCodeAt(0), 0) : points}
+        />
+      ) : null}
 
-      {/* Saturated Aura points reveal */}
       <motion.div
-        initial={{ scale: 0.5, y: 30, opacity: 0 }}
-        animate={{ scale: 1, y: 0, opacity: 1 }}
-        transition={{ type: "spring", delay: 0.35, stiffness: 220 }}
-        className={cn(
-          "heading text-5xl sm:text-6xl font-black tracking-tight leading-none grad-text",
-          isPositive ? "text-emerald-400" : "text-red-400"
-        )}
-        style={{ fontFamily: "var(--font-display)" }}
-      >
-        {isPositive ? "+" : ""}
-        {formatAuraPoints(result.aura.points)}
-      </motion.div>
-
-      <motion.p
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.55 }}
-        className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.25em] text-muted-foreground/60"
-      >
-        aura points
-      </motion.p>
-
-      {/* Savagely Quoted Verdict */}
-      <motion.div
-        initial={{ opacity: 0, y: 15 }}
+        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.75 }}
-        className="mt-5 mx-2 rounded-2xl bg-secondary/20 border border-border/30 p-4"
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.24 }}
+        className="flex justify-center"
       >
-        <p className="text-xs sm:text-sm italic leading-relaxed text-muted-foreground">
-          &ldquo;{result.aura.verdict}&rdquo;
-        </p>
+        <EmojiMark emoji={result.aura?.emoji} label="verdict emoji" className="text-5xl" />
       </motion.div>
 
-      {/* Dynamic Vibe Tag */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.85 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.95 }}
-        className="mt-4"
+        initial={reducedMotion ? false : { opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.28, delay: 0.12 }}
+        className="mt-3"
       >
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-accent/15 border border-accent/20 px-4 py-2 text-xs font-extrabold uppercase tracking-widest text-accent">
-          <Sparkles className="h-3.5 w-3.5" />
-          {result.aura.vibe_tag}
+        <AuraNumber value={points} size="hero" animate />
+      </motion.div>
+
+      <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground">aura points</p>
+
+      <motion.blockquote
+        initial={reducedMotion ? false : { opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.28, delay: 0.24 }}
+        className="mx-auto mt-4 max-w-sm border-l-2 pl-3 text-left text-sm italic leading-relaxed text-muted-foreground"
+        style={{ borderColor: isPositive ? MINT.patinaBright : MINT.oxide }}
+      >
+        {result.aura?.verdict}
+      </motion.blockquote>
+
+      <motion.div
+        initial={reducedMotion ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.28, delay: 0.34 }}
+        className="mt-4 flex flex-wrap items-center justify-center gap-2"
+      >
+        {result.aura?.vibe_tag ? (
+          <span className="rounded-md border border-[#1F6F5C]/30 bg-[#1F6F5C]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-foreground">
+            {result.aura.vibe_tag}
+          </span>
+        ) : null}
+        <span className="inline-flex items-center gap-2 rounded-md border border-border/70 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          <TierMark tier={tier} size="sm" />
+          {tier}
         </span>
       </motion.div>
 
-      {/* Progress & Stat Pill */}
       <motion.div
-        initial={{ opacity: 0 }}
+        initial={reducedMotion ? false : { opacity: 0 }}
         animate={{ opacity: 1 }}
-        transition={{ delay: 1.15 }}
-        className="mt-6 rounded-2xl border border-border/30 bg-secondary/15 p-4"
+        transition={reducedMotion ? { duration: 0 } : { duration: 0.28, delay: 0.42 }}
+        className="mt-5"
       >
-        <p className="text-[10px] font-extrabold uppercase tracking-wider text-muted-foreground/60">Total Aura Balance</p>
-        <p className="heading text-xl font-bold mt-1 tracking-tight leading-none text-primary">
-          {formatAuraPoints(result.newTotalAura)}
-        </p>
-        <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/80 mt-1">
-          {result.newTier} {result.streakBonus > 0 && `(Streak Bonus +${result.streakBonus}!)`}
-        </p>
+        <Plate className="px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+              Total balance
+            </span>
+            <AuraNumber value={result.newTotalAura ?? 0} size="md" signed={false} />
+          </div>
+          <div className="mt-2 flex items-center justify-between gap-3">
+            <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
+              <Flame className="h-3.5 w-3.5" aria-hidden="true" />
+              {result.streak ?? 0}-day streak
+            </span>
+            {result.streakBonus ? (
+              <span className="font-mono text-[11px] tabular-nums text-[#16604F] dark:text-[#43B994]">
+                streak bonus +{result.streakBonus}
+              </span>
+            ) : null}
+          </div>
+        </Plate>
       </motion.div>
 
-      {/* Close Action Trigger */}
-      <motion.button
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.35 }}
-        onClick={onClose}
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-primary px-5 py-4 text-xs font-extrabold uppercase tracking-wider text-primary-foreground shadow-lg transition hover:brightness-110 active:scale-98"
-      >
-        <span>Nice! Back to Feed</span>
-        <Crown className="h-4 w-4" />
-      </motion.button>
+      <div className="mt-5 flex flex-col gap-2">
+        <PrimaryButton onClick={onClose} className="w-full">
+          Back to the ledger
+          <Crown className="h-4 w-4" aria-hidden="true" />
+        </PrimaryButton>
+        {eventId ? (
+          <Link
+            href={`/event/${eventId}`}
+            className="inline-flex items-center justify-center gap-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground hover:text-foreground"
+          >
+            View the public record
+            <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+          </Link>
+        ) : null}
+      </div>
     </div>
   );
 }

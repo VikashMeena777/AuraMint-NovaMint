@@ -1,0 +1,38 @@
+{
+ "probe": "supabase-management-api-project-details",
+ "endpoint": "GET https://api.supabase.com/v1/projects/drgparslvudatouqtjmx",
+ "auth": "Authorization: Bearer <SUPABASE_ACCESS_TOKEN from configured MCP server env>; value never printed",
+ "requested_at": "2026-09-17T16:54:20.321Z",
+ "duration_ms": 473,
+ "http_status": 200,
+ "network_error": null,
+ "response_top_level_keys": [
+  "created_at",
+  "database",
+  "id",
+  "name",
+  "organization_id",
+  "organization_slug",
+  "ref",
+  "region",
+  "status"
+ ],
+ "response_allowlisted": {
+  "id": "drgparslvudatouqtjmx",
+  "name": "AuraMint",
+  "region": "ap-south-1",
+  "status": "INACTIVE",
+  "created_at": "2026-05-27T16:11:25.839834Z",
+  "database": {
+   "version": "17.6.1.127",
+   "postgres_engine": "17",
+   "release_channel": "ga"
+  }
+ },
+ "omitted_top_level_fields": [
+  "organization_id",
+  "organization_slug",
+  "ref"
+ ],
+ "non_200_body_excerpt": null
+}

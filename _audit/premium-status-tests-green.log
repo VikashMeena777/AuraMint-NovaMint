@@ -1,0 +1,14 @@
+✔ normaliseStatus(ACTIVE) is pending, the token the verify route preserves (0.7506ms)
+✔ active / Active normalise to pending (mapper lowercases before comparing) (0.1188ms)
+✔ supported statuses map exactly as before (controls) (0.1316ms)
+✔ unknown and empty inputs still fall through to idle (0.1011ms)
+✔ out-of-scope provider tokens (EXPIRED, TERMINATED) deliberately remain idle (0.0881ms)
+✔ the tested function is the real component declaration, not a stub (0.1716ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 13.7475
