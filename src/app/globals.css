@@ -333,6 +333,15 @@ body::before {
   -webkit-backdrop-filter: none;
 }
 
+/* This sheet is unlayered, so `.plate` beat Tailwind's layered `fixed` utility and
+   every dialog positioned itself against the document instead of the viewport
+   (`top: 50%` of a 1500px body put the composer off-screen on phones). A plate
+   that is also `fixed` must genuinely be fixed; the two-class selector keeps this
+   above `.plate` without `!important`. */
+.plate.fixed {
+  position: fixed;
+}
+
 /* Only interactive plates respond to hover (research P2-26). */
 a.plate:hover,
 button.plate:hover,

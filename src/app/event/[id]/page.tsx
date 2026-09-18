@@ -25,6 +25,7 @@ const ID_PATTERN = /^[A-Za-z0-9_-]{6,64}$/;
 
 type EventRecord = {
   id: string;
+  user_id: string;
   description: string;
   aura_points: number;
   ai_verdict: string | null;
@@ -43,16 +44,27 @@ async function fetchEvent(id: string): Promise<EventRecord | null> {
   if (!ID_PATTERN.test(id)) return null;
   try {
     const supabase = await createClient();
+    // No profile embed: `aura_events.user_id` references `auth.users`, so
+    // `profiles!aura_events_user_id_fkey` cannot resolve (PostgREST reports
+    // "Could not find a relationship…"). The author is read by id instead.
     const { data, error } = await supabase
       .from("aura_events")
       .select(
-        "id, description, aura_points, ai_verdict, ai_vibe_tag, ai_emoji, category, upvotes, downvotes, created_at, profiles!aura_events_user_id_fkey(username, display_name, avatar_url, current_tier, is_premium)"
+        "id, user_id, description, aura_points, ai_verdict, ai_vibe_tag, ai_emoji, category, upvotes, downvotes, created_at"
       )
       .eq("id", id)
       .eq("is_public", true)
       .maybeSingle();
     if (error || !data) return null;
-    return data as EventRecord;
+
+    const event = data as EventRecord;
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("username, display_name, avatar_url, current_tier, is_premium")
+      .eq("id", event.user_id)
+      .maybeSingle();
+
+    return { ...event, profiles: (profile as EventProfile | null) ?? null };
   } catch {
     return null;
   }

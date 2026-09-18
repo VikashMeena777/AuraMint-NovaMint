@@ -509,6 +509,41 @@ async function loadFeedRows(
 }
 
 /**
+ * Loads the public profile summary for a batch of author ids.
+ *
+ * The feed cannot embed profiles through PostgREST (the event FK points at
+ * `auth.users`), so authors are read in one extra query and merged by id —
+ * the same pattern the interaction state below already uses.
+ */
+async function loadAuthorProfiles(
+  supabase: SupabaseClient,
+  userIds: string[]
+): Promise<Map<string, PublicProfileSummary>> {
+  const byId = new Map<string, PublicProfileSummary>();
+  if (userIds.length === 0) return byId;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, username, display_name, avatar_url, current_tier, total_aura, is_premium")
+    .in("id", userIds);
+
+  if (error) {
+    console.warn("[getPublicFeed] author profiles query failed:", error.message);
+    return byId;
+  }
+
+  for (const row of Array.isArray(data) ? data : []) {
+    const id = (row as { id?: unknown }).id;
+    if (typeof id !== "string") continue;
+    const profile = normalizePublicProfile(
+      row as Partial<Record<keyof PublicProfileSummary, unknown>>
+    );
+    if (profile) byId.set(id, profile);
+  }
+  return byId;
+}
+
+/**
  * Attaches read-side interaction state to feed rows.
  *
  * `reaction_counts` is aggregated from the `reactions` table and `viewer_vote` /
@@ -584,22 +619,12 @@ export async function getPublicFeed(
   const from = safePage * safeLimit;
   const to = from + safeLimit - 1;
 
-  let query = supabase
-    .from("aura_events")
-    .select(
-      `
-      *,
-      profiles!aura_events_user_id_fkey (
-        username,
-        display_name,
-        avatar_url,
-        current_tier,
-        total_aura,
-        is_premium
-      )
-    `
-    )
-    .eq("is_public", true);
+  // NOTE: `aura_events.user_id` references `auth.users`, NOT `profiles`, so a
+  // PostgREST embed (`profiles!aura_events_user_id_fkey`) can never resolve — it
+  // failed every dashboard load with "Could not find a relationship between
+  // 'aura_events' and 'profiles'". Author profiles are fetched separately below
+  // and merged in code.
+  let query = supabase.from("aura_events").select("*").eq("is_public", true);
 
   switch (safeTab) {
     case "hot": {
@@ -624,17 +649,20 @@ export async function getPublicFeed(
     return { events: [], hasMore: false, error: "Failed to load the feed" };
   }
 
+  const rows = Array.isArray(data) ? data : [];
+  const profilesById = await loadAuthorProfiles(
+    supabase,
+    [...new Set(rows.map((raw) => (raw as { user_id?: unknown }).user_id))]
+      .filter((id): id is string => typeof id === "string")
+  );
+
   const events: PublicFeedEvent[] = [];
-  for (const raw of Array.isArray(data) ? data : []) {
+  for (const raw of rows) {
     const row = normalizeEventRow(raw as RawEventRow);
     if (!row) continue;
-    const embedded = (raw as { profiles?: unknown }).profiles;
-    const profileRow = (Array.isArray(embedded) ? embedded[0] : embedded) as
-      | Partial<Record<keyof PublicProfileSummary, unknown>>
-      | null;
     events.push({
       ...row,
-      profiles: normalizePublicProfile(profileRow),
+      profiles: profilesById.get(row.user_id) ?? null,
       reaction_counts: {},
       viewer_vote: null,
       viewer_reaction: null,

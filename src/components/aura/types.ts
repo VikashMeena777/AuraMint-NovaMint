@@ -9,7 +9,7 @@
 export type FeedTab = "hot" | "fresh" | "top";
 export type LeaderboardPeriod = "daily" | "weekly" | "alltime";
 
-/** Profile columns embedded in feed rows (`profiles!aura_events_user_id_fkey`). */
+/** Author profile summary attached to feed rows (read separately — no DB relationship exists). */
 export type EventProfile = {
   username?: string | null;
   display_name?: string | null;

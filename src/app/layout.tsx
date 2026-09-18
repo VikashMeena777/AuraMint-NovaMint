@@ -65,6 +65,10 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  // Chrome Android: shrink the layout viewport when the on-screen keyboard opens,
+  // so full-height dialogs (the aura composer) stay on screen while typing.
+  // Ignored by browsers that don't support it.
+  interactiveWidget: "resizes-content",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#F4EFE3" },
     { media: "(prefers-color-scheme: dark)", color: "#0B0E0C" },
